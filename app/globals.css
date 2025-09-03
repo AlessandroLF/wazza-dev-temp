@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 160 84% 39%;
+    --radius: 0.75rem;
+    --speed: 0.26;
+    --blur: 4;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Form validation colors */
+    --default: color-mix(in hsl, canvas, hsl(var(--foreground)) 25%);
+    --accent: hsl(260 80% 70%);
+    --invalid: hsl(10 80% 50%);
+    --valid: hsl(140 90% 40%);
+  }
+
+  .dark {
+    --background: 225 25% 10%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 160 84% 39%;
+
+    /* Form validation colors for dark mode */
+    --default: color-mix(in hsl, hsl(var(--background)), hsl(var(--foreground)) 25%);
+    --accent: hsl(260 80% 70%);
+    --invalid: hsl(10 80% 50%);
+    --valid: hsl(140 90% 40%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Icon Nav Styles */
+  .nav li {
+    position: relative;
+  }
+
+  /* Update the feature-icon-btn style to remove hover effects */
+  .feature-icon-btn {
+    @apply flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 relative bg-gray-100/50 text-gray-500;
+  }
+
+  /* Remove the hover style */
+  .feature-icon-btn:hover {
+    @apply bg-white text-black shadow-md transform -translate-y-1;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Keep the active state styling */
+  .feature-active {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .feature-active:hover {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  /* Tooltip styles */
+  @keyframes tooltip-appear {
+    0% {
+      opacity: 0;
+      transform: translateY(5px) translateX(-50%);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) translateX(-50%);
+    }
+  }
+
+  /* Make sure the tooltip is hidden by default but shows on hover */
+  .tooltip-text {
+    display: none;
+  }
+
+  .feature-icon-btn:hover .tooltip-text {
+    display: block;
+  }
+
+  .tooltip-text {
+    @apply absolute z-50 bg-popover text-popover-foreground px-3 py-1.5 text-xs rounded-md shadow-md whitespace-nowrap -top-8 left-1/2 -translate-x-1/2;
+    animation: tooltip-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Form styles for Tag Input - moderate spacing */
+  .form-group {
+    position: relative;
+    font-size: 1rem;
+    width: 100%;
+    max-width: 260px;
+    margin-bottom: 6px;
+  }
+
+  .form-group:focus-within {
+    --status: var(--accent);
+  }
+
+  .form-group:has(input:valid) {
+    --status: var(--valid);
+  }
+
+  .form-group:has(input:invalid) {
+    --status: var(--valid); /* Changed from --invalid to --valid to prevent error styling */
+  }
+
+  .form-group input {
+    color: inherit;
+    padding-inline: 0.75em;
+    padding-block: 0.45em;
+    border-radius: 6px;
+    background: hsl(var(--background));
+    border: 1px solid var(--status, var(--default));
+    outline: none;
+    width: 100%;
+    background: color-mix(in hsl, var(--status), transparent 98%);
+    margin-top: 2px;
+  }
+
+  .form-group input::selection {
+    background: color-mix(in hsl, var(--status, var(--accent)), white 40%);
+    color: white;
+  }
+
+  .form-group label span {
+    height: 100%;
+    display: flex;
+    place-items: center;
+  }
+
+  .form-group label .char {
+    height: 100%;
+    transform-origin: 0 50%;
+    translate: 0.875rem 0;
+    transition: translate 0.2s;
+    display: inline-block;
+    transition-delay: calc(sin(((8 - var(--char-index)) / 8) * 45deg) * 0.2s);
+  }
+
+  .form-group label {
+    cursor: pointer;
+    opacity: 0.5;
+    transform-origin: 0 0;
+    transition: scale 0.2s, opacity 0.2s, color 0.2s;
+  }
+
+  .form-group:has(input:focus),
+  .form-group:has(input:not(:placeholder-shown)) {
+    scale: 0.875;
+    opacity: 1;
+  }
+
+  .form-group:has(input:focus) label .char,
+  .form-group:has(input:not(:placeholder-shown)) label .char {
+    translate: 0 -85%;
+    transition-delay: calc(sin((var(--char-index) / 8) * 45deg) * 0.2s);
+  }
+
+  .form-group label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    color: var(--status);
+  }
+
+  /* Hide error messages */
+  .form-group .error {
+    display: none !important;
+  }
+
+  /* Thin scrollbar styles */
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Animated Number Display */
+  /* Update the number display styles to be extremely compact */
+  .number-display {
+    font-variant-numeric: tabular-nums;
+    transition: all 0.2s ease;
+    line-height: 1;
+  }
+
+  .number-display .dots {
+    display: flex;
+    align-items: center;
+  }
+
+  .number-display .dots span {
+    display: inline-block;
+    animation: pulse 1.5s infinite ease-in-out;
+    line-height: 1;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .number-display[data-visible="true"] .dots {
+    display: none;
+  }
+
+  .number-display[data-copied="true"] {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.1);
+  }
+
+  /* Make the UserDropdown more compact */
+  .user-dropdown button {
+    height: 1.5rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0.75rem;
+  }
+}

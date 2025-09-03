@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base, demo, inversion;
+
+@layer inversion {
+  /* ::before === sky pattern, ::after === stars */
+  @media (prefers-color-scheme: light) {
+    [data-invert="true"]::after,
+    [data-invert="false"]::before {
+      opacity: 1;
+    }
+    [data-invert="true"]::before,
+    [data-invert="false"]::after {
+      opacity: 0.1;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    [data-invert="true"]::before,
+    [data-invert="false"]::after {
+      opacity: 1;
+      background-position: 0% 50%;
+    }
+    [data-invert="true"]::after,
+    [data-invert="false"]::before {
+      opacity: 0;
+    }
+  }
+
+  [data-invert="true"][data-theme="light"]::before {
+    opacity: 0.1;
+    background-position: 50% 50%;
+  }
+  [data-invert="true"][data-theme="dark"]::before {
+    opacity: 1;
+    background-position: 0% 50%;
+  }
+  [data-invert="true"][data-theme="light"]::after,
+  [data-invert="false"][data-theme="dark"]::after {
+    opacity: 1;
+  }
+  [data-invert="false"][data-theme="light"]::after,
+  [data-invert="true"][data-theme="dark"]::after {
+    opacity: 0;
+  }
+  [data-invert="false"][data-theme="light"]::before {
+    opacity: 1;
+    background-position: 50% 50%;
+  }
+  [data-invert="false"][data-theme="dark"]::before {
+    opacity: 0.1;
+    background-position: 0% 50%;
+  }
+
+  [data-invert="true"] {
+    background: light-dark(#01022e, #34d0ff);
+  }
+  [data-invert="false"] {
+    background: light-dark(#34d0ff, #01022e);
+  }
+}
+
+@layer demo {
+  :root {
+    --perspective: 400vmax;
+    --distance: -0.75;
+    --duration: 1.2s;
+    --ease: ease-in-out;
+    view-transition-name: none;
+  }
+
+  html {
+    transition: background calc(var(--duration) * 0.25) calc(var(--duration) * 0.5) ease-out;
+    background-position: center;
+    background-size: cover;
+  }
+
+  html::before,
+  html::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-size: cover;
+    background-position: 50% 50%;
+    transition: opacity calc(var(--duration) * 0.25) calc(var(--duration) * 0.5) ease-out, background-position
+      calc(var(--duration) * 1) ease-out;
+    z-index: -1;
+  }
+
+  html::before {
+    /* Green hexagonal pattern */
+    background-color: #4a9b8e;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' width='100' height='100'%3E%3Cdefs%3E%3Cpattern id='hex' x='0' y='0' width='50' height='43.3' patternUnits='userSpaceOnUse'%3E%3Cpolygon fill='%23659b8f' points='25,0 50,14.43 50,28.87 25,43.3 0,28.87 0,14.43'/%3E%3Cpolygon fill='%235a8a7e' points='25,0 37.5,7.22 37.5,21.65 25,28.87 12.5,21.65 12.5,7.22'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23hex)'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+  }
+
+  html::after {
+    background-image: url(https://assets.codepen.io/605876/stars.svg);
+    z-index: -2;
+  }
+
+  body {
+    overscroll-behavior: none;
+    view-transition-name: body;
+  }
+
+  ::view-transition-new(body),
+  ::view-transition-old(body) {
+    transform: perspective(var(--perspective)) translate3d(0, 0, 0);
+    animation: travel var(--duration);
+    backface-visibility: hidden;
+  }
+
+  ::view-transition-new(body) {
+    --rotation-start: 90deg;
+    --rotation-end: 0deg;
+    --depth-start: 1;
+    --depth-end: 0;
+  }
+
+  ::view-transition-old(body) {
+    --depth-end: 1;
+    --depth-start: 0;
+    --rotation-start: 0deg;
+    --rotation-end: -90deg;
+  }
+
+  @keyframes travel {
+    0% {
+      animation-timing-function: ease-in;
+      transform: perspective(var(--perspective))
+        translate3d(0, 0, calc((var(--perspective) * var(--distance)) * var(--depth-start)))
+        rotateY(var(--rotation-start, 0deg)) translate3d(0, 0, calc(50vw * var(--depth-start)));
+    }
+    25% {
+      animation-timing-function: var(--ease);
+      transform: perspective(var(--perspective)) translate3d(0, 0, calc(var(--perspective) * var(--distance)))
+        rotateY(var(--rotation-start, 0deg)) translate3d(0, 0, 50vw);
+    }
+    75% {
+      animation-timing-function: var(--ease);
+      transform: perspective(var(--perspective)) translate3d(0, 0, calc(var(--perspective) * var(--distance)))
+        rotateY(var(--rotation-end, -90deg)) translate3d(0, 0, 50vw);
+    }
+    100% {
+      animation-timing-function: var(--ease);
+      transform: perspective(var(--perspective))
+        translate3d(0, 0, calc((var(--perspective) * var(--distance)) * var(--depth-end)))
+        rotateY(var(--rotation-end, 0deg)) translate3d(0, 0, calc(50vw * var(--depth-end)));
+    }
+  }
+
+  .text-loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@layer base {
+  :root {
+    --font-size-min: 16;
+    --font-size-max: 20;
+    --font-ratio-min: 1.2;
+    --font-ratio-max: 1.33;
+    --font-width-min: 375;
+    --font-width-max: 1500;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  [data-theme="light"] {
+    color-scheme: light only;
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark only;
+  }
+
+  :where(.fluid) {
+    --fluid-min: calc(var(--font-size-min) * pow(var(--font-ratio-min), var(--font-level, 0)));
+    --fluid-max: calc(var(--font-size-max) * pow(var(--font-ratio-max), var(--font-level, 0)));
+    --fluid-preferred: calc((var(--fluid-max) - var(--fluid-min)) / (var(--font-width-max) - var(--font-width-min)));
+    --fluid-type: clamp(
+      (var(--fluid-min) / 16) *
+      1rem,
+      ((var(--fluid-min) / 16) * 1rem) -
+      (((var(--fluid-preferred) * var(--font-width-min)) / 16) * 1rem) +
+      (var(--fluid-preferred) * var(--variable-unit, 100vi)),
+      (var(--fluid-max) / 16) *
+      1rem
+    );
+    font-size: var(--fluid-type);
+  }
+}
+
+/* Basic CSS reset and normalization */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  scroll-behavior: smooth;
+  text-rendering: optimizeSpeed;
+  line-height: 1.5;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img,
+picture {
+  max-width: 100%;
+  display: block;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}

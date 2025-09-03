@@ -1,0 +1,201 @@
+/* Custom styles for the Tag Triggers dialog */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.tag-triggers-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  max-width: 90vw;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 2rem -1rem hsl(0 0% 10% / 0.75);
+  z-index: 100;
+  overflow: hidden;
+  color: hsl(0 0% 18%);
+}
+
+.tag-triggers-dialog-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid hsl(0 0% 0% / 0.1);
+}
+
+.tag-triggers-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: hsl(0 0% 10%);
+}
+
+.tag-triggers-dialog-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(0 0% 40%);
+  transition: color 0.2s ease;
+}
+
+.tag-triggers-dialog-close:hover {
+  color: hsl(0 0% 10%);
+}
+
+.tag-triggers-dialog-content {
+  padding: 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.tag-triggers-dialog-field {
+  margin-bottom: 1.5rem;
+}
+
+.tag-triggers-dialog-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: hsl(0 0% 30%);
+}
+
+.tag-triggers-dialog-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid hsl(160 84% 39% / 0.5);
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tag-triggers-dialog-input:focus {
+  outline: none;
+  border-color: hsl(160 84% 39%);
+  box-shadow: 0 0 0 2px hsl(160 84% 39% / 0.2);
+}
+
+.tag-triggers-dialog-footer {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid hsl(0 0% 0% / 0.1);
+  background: white;
+}
+
+.tag-triggers-dialog-save {
+  background: hsl(160 84% 39%);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.tag-triggers-dialog-save:hover {
+  background: hsl(160 84% 35%);
+}
+
+.tag-triggers-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: hsl(0 0% 0% / 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 99;
+}
+
+/* Animation for dialog */
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tag-triggers-dialog {
+  animation: dialogFadeIn 0.3s ease forwards;
+}
+
+.tag-triggers-dialog-overlay {
+  animation: overlayFadeIn 0.3s ease forwards;
+}
+
+/* Indicator styles for scrolling */
+.indicator {
+  position: sticky;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  height: 48px;
+  --scroll-buffer: 2rem;
+  opacity: 0;
+  animation: reveal both linear;
+  animation-timeline: scroll(nearest);
+  animation-range: 0 var(--scroll-buffer);
+}
+
+.indicator--top {
+  top: 0;
+  border-bottom: 1px solid hsl(0 0% 0% / 0.1);
+}
+
+.indicator--bottom {
+  bottom: 0;
+  border-top: 1px solid hsl(0 0% 0% / 0.1);
+  animation-range: calc(100% - var(--scroll-buffer)) 100%;
+  animation-direction: reverse;
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+  }
+}
