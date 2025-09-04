@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import styles from "./AdminLogin.module.css";
+import styles from "./adminLogin.module.css";
 
 export default function AdminLogin({ userId, onSuccess }) {
   const [open, setOpen] = useState(false);
