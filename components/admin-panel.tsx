@@ -1,275 +1,227 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { ArrowLeft, Users, Settings, Phone, Plus, LogOut, Bell } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import SubAccountPanel from "./sub-account-panel"
-import ImpossibleCheckboxClean from "./impossible-checkbox-clean"
+import { useState, useRef, useEffect } from "react";
+import { ArrowLeft, Users, Settings, Phone, Plus, LogOut, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import SubAccountPanel from "./sub-account-panel";
+import ImpossibleCheckboxClean from "./impossible-checkbox-clean";
+import { useToast } from "@/components/ui/use-toast";
 
-type AdminData = {
-  customId: string
-  name: string
-  email: string
-  phone: string
-  contactId: string
-  code: string
-}
+import {
+  setAuth,
+  apiAdminLogin,
+  apiAdminCheck,
+  apiAdminInfo,
+  apiCreateSubaccount,
+  apiChangePassword,
+  getAuthFromStorage,
+  type AdminData,
+  type SubscriptionStats,
+  type SubAccountItem,
+} from "@/lib/api/admin"; // <- adjust to a relative path if needed
 
-type SubscriptionStats = {
-  expiredAt: string
-  subaccounts: { total: number; used: number; available: number }
-  instances: { total: number; used: number; available: number }
-}
-
-type SubAccountItem = {
-  type: string
-  name: string
-  locationId: string
-  customId: string
-  whiteId: string
-  sessions: number
-  isConnected: boolean
-  status: boolean
-  refreshAt: string | null
-}
+type AdminPanelProps = {
+  data: AdminData;
+};
 
 const pct = (used?: number, total?: number) =>
-  !total || total <= 0 || !used ? 0 : Math.round((used / total) * 100)
+  !total || total <= 0 || !used ? 0 : Math.round((used / total) * 100);
 
-const POLL_MS = 60_000
-
-function getAuthFromStorage() {
-  try {
-    const raw = localStorage.getItem("wazzap_auth")
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed.jwt === "string") return parsed as { userId: string; jwt: string }
-  } catch {}
-  return null
-}
-
-interface AdminPanelProps {
-  data: AdminData
-}
+const POLL_MS = 60_000;
 
 export default function AdminPanel({ data }: AdminPanelProps) {
-  const [adminActiveNav, setAdminActiveNav] = useState("sub-accounts")
-  const [showAdminUserDropdown, setShowAdminUserDropdown] = useState(false)
-  const [showChangePasswordForm, setShowChangePasswordForm] = useState(false)
-  const [showCreateSubAccountModal, setShowCreateSubAccountModal] = useState(false)
-  const [newSubAccountName, setNewSubAccountName] = useState("")
-  const [newSubAccountWhatsappLimit, setNewSubAccountWhatsappLimit] = useState("1")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [customMenuUrl, setCustomMenuUrl] = useState("https://panel.wazzap.mx/g/{{location.id}}")
-  const adminUserDropdownRef = useRef<HTMLDivElement>(null)
+  const [adminActiveNav, setAdminActiveNav] = useState<"sub-accounts" | "settings">("sub-accounts");
+  const [showAdminUserDropdown, setShowAdminUserDropdown] = useState(false);
+  const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
+  const [showCreateSubAccountModal, setShowCreateSubAccountModal] = useState(false);
+  const [newSubAccountName, setNewSubAccountName] = useState("");
+  const [newSubAccountWhatsappLimit, setNewSubAccountWhatsappLimit] = useState("1");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [customMenuUrl, setCustomMenuUrl] = useState("https://panel.wazzap.mx/g/{{location.id}}");
+  const adminUserDropdownRef = useRef<HTMLDivElement>(null);
 
-  const [adminData, setAdminData] = useState<AdminData>(data)
-  const [subscription, setSubscription] = useState<SubscriptionStats | null>(null)
-  const [subaccounts, setSubaccounts] = useState<SubAccountItem[]>([])
-  const [stripeUrl, setStripeUrl] = useState<string | null>(null)
+  const [adminData, setAdminData] = useState<AdminData>(data);
+  const [subscription, setSubscription] = useState<SubscriptionStats | null>(null);
+  const [subaccounts, setSubaccounts] = useState<SubAccountItem[]>([]);
+  const [stripeUrl, setStripeUrl] = useState<string | null>(null);
 
+  const { toast } = useToast();
+
+  // --------- Queries (unchanged behavior via API helpers) ----------
   async function refreshAdminData(signal?: AbortSignal) {
-    const auth = getAuthFromStorage()
-    if (!auth?.jwt) return
+    const auth = getAuthFromStorage();
+    if (!auth?.jwt) return;
 
-    try {
-      const res = await fetch("https://dev-api-front.wazzap.me/admin/check", {
-        method: "GET",
-        headers: {
-          Authorization: auth.jwt,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-        signal,
-      })
+    const { ok, json } = await apiAdminCheck({ signal });
 
-      const json = await res.json().catch(() => null)
-
-      if (!res.ok || json?.error || (json?.code && json.code >= 400)) {
-        const msg = typeof json?.message === "string" ? json.message.toLowerCase() : ""
-        if (msg.includes("invalid or expired token")) {
-          // TODO: token expired — decide re-auth flow later
-          console.warn("Token expired — TODO: handle re-auth flow here.")
-          return
-        }
-        console.warn("admin/check failed", json)
-        return
+    if (!ok || json?.error || (json?.code && json.code >= 400)) {
+      const msg = typeof json?.message === "string" ? json.message.toLowerCase() : "";
+      if (msg.includes("invalid or expired token")) {
+        console.warn("Token expired — TODO: handle re-auth flow here.");
+        return;
       }
+      console.warn("admin/check failed", json);
+      return;
+    }
 
-      if (json?.code === 200 && json?.data) {
-        setAdminData(json.data as AdminData)
-      }
-    } catch (err) {
-      console.warn("admin/check error", err)
+    if (json?.code === 200 && json?.data) {
+      setAdminData(json.data as AdminData);
     }
   }
 
   async function refreshAdminInfo(signal?: AbortSignal) {
-    const auth = getAuthFromStorage()
-    if (!auth?.jwt) return
+    const auth = getAuthFromStorage();
+    if (!auth?.jwt) return;
 
-    try {
-      const res = await fetch("https://dev-api-front.wazzap.me/admin/info", {
-        method: "GET",
-        headers: {
-          Authorization: auth.jwt,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-        signal,
-      })
+    const { ok, json } = await apiAdminInfo({ signal });
 
-      const json = await res.json().catch(() => null)
-
-      if (!res.ok || json?.error || (json?.code && json.code >= 400)) {
-        const msg = typeof json?.message === "string" ? json.message.toLowerCase() : ""
-        if (msg.includes("invalid or expired token")) {
-          // TODO: token expired — decide re-auth flow later
-          console.warn("Token expired (info) — TODO: handle re-auth flow here.")
-          return
-        }
-        console.warn("admin/info failed", json)
-        return
+    if (!ok || json?.error || (json?.code && json.code >= 400)) {
+      const msg = typeof json?.message === "string" ? json.message.toLowerCase() : "";
+      if (msg.includes("invalid or expired token")) {
+        console.warn("Token expired (info) — TODO: handle re-auth flow here.");
+        return;
       }
+      console.warn("admin/info failed", json);
+      return;
+    }
 
-      if (json?.code === 200 && json?.data) {
-        if (json.data.subscription) setSubscription(json.data.subscription as SubscriptionStats)
-        if (Array.isArray(json.data.subaccounts)) setSubaccounts(json.data.subaccounts as SubAccountItem[])
-        if (typeof json.data.stripe === "string") setStripeUrl(json.data.stripe as string)
-        if (json.data.user) setAdminData(json.data.user as AdminData) // keep user fresh
-      }
-    } catch (err) {
-      console.warn("admin/info error", err)
+    if (json?.code === 200 && json?.data) {
+      if (json.data.subscription) setSubscription(json.data.subscription as SubscriptionStats);
+      if (Array.isArray(json.data.subaccounts)) setSubaccounts(json.data.subaccounts as SubAccountItem[]);
+      if (typeof json.data.stripe === "string") setStripeUrl(json.data.stripe as string);
+      if (json.data.user) setAdminData(json.data.user as AdminData); // keep user fresh
     }
   }
 
   useEffect(() => {
-    const ctrl = new AbortController()
-
-    refreshAdminData(ctrl.signal)
-    const iv = setInterval(() => refreshAdminData(ctrl.signal), POLL_MS)
+    const ctrl = new AbortController();
+    refreshAdminData(ctrl.signal);
+    const iv = setInterval(() => refreshAdminData(ctrl.signal), POLL_MS);
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "wazzap_auth") refreshAdminData(ctrl.signal)
-    }
-    window.addEventListener("storage", onStorage)
+      if (e.key === "wazzap_auth") refreshAdminData(ctrl.signal);
+    };
+    window.addEventListener("storage", onStorage);
 
     return () => {
-      clearInterval(iv)
-      window.removeEventListener("storage", onStorage)
-      ctrl.abort()
-    }
-  }, [])
+      clearInterval(iv);
+      window.removeEventListener("storage", onStorage);
+      ctrl.abort();
+    };
+  }, []);
 
   useEffect(() => {
-    const ctrl = new AbortController()
-    refreshAdminInfo(ctrl.signal)
-    return () => ctrl.abort()
-  }, [])
+    const ctrl = new AbortController();
+    refreshAdminInfo(ctrl.signal);
+    return () => ctrl.abort();
+  }, []);
 
+  // --------- Mutations (preserve original shapes/messages) ----------
   async function handleCreateSubAccountSave() {
-    const auth = getAuthFromStorage()
+    const auth = getAuthFromStorage();
     if (!auth?.jwt) {
-      alert("Not authenticated. Please log in again.")
-      return
+      alert("Not authenticated. Please log in again.");
+      return;
     }
 
-    const name = newSubAccountName.trim()
-    const instances = Number(newSubAccountWhatsappLimit || "0") || 0
+    const name = newSubAccountName.trim();
+    const instances = Number(newSubAccountWhatsappLimit || "0") || 0;
     if (!name || instances <= 0) {
-      alert("Please provide a valid name and whatsapp limit.")
-      return
+      alert("Please provide a valid name and whatsapp limit.");
+      return;
     }
 
-    try {
-      const res = await fetch("https://dev-api-front.wazzap.me/admin/subaccount", {
-        method: "POST",
-        headers: {
-          Authorization: auth.jwt,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ name, type: "GHL", instances }),
-      })
+    const res = await apiCreateSubaccount({ name, instances, type: "GHL" });
 
-      const text = await res.text()
-      let msg = text
-      try {
-        const json = JSON.parse(text)
-        msg = json?.message || text
-      } catch {}
+  if (!res.ok) {
+    const msg = (res.json?.message as string) || res.text || `HTTP ${res.status}`;
+    toast({ variant: "destructive", title: "Create failed", description: msg });
+    return;
+  }
 
-      if (!res.ok) {
-        alert(`Create failed: ${msg || `HTTP ${res.status}`}`)
-        return
-      }
-
-      alert(msg || "The subaccount was successfully created")
-      setShowCreateSubAccountModal(false)
-      setNewSubAccountName("")
-      setNewSubAccountWhatsappLimit("1")
-      await refreshAdminInfo() // reflect new subaccount
-    } catch (err: any) {
-      alert(`Network error: ${err?.message || err}`)
-    }
+  toast({ title: "Subaccount created", description: (res.json?.message as string) || "Done." });
+  setShowCreateSubAccountModal(false);
+  setNewSubAccountName("");
+  setNewSubAccountWhatsappLimit("1");
+  await refreshAdminInfo();
   }
 
   async function handleChangePassword() {
-    const auth = getAuthFromStorage()
-    if (!auth?.jwt) {
-      alert("Not authenticated. Please log in again.")
-      return
-    }
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      alert("Please fill in all password fields.")
-      return
-    }
-
-    try {
-      const res = await fetch("https://dev-api-front.wazzap.me/admin/subaccount/change", {
-        method: "PUT",
-        headers: {
-          Authorization: auth.jwt,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-          confirm_password: confirmPassword,
-        }),
-      })
-
-      const text = await res.text()
-      let msg = text
-      try {
-        const json = JSON.parse(text)
-        msg = json?.message || text
-      } catch {}
-
-      if (!res.ok) {
-        alert(`Change password failed: ${msg || `HTTP ${res.status}`}`)
-        return
-      }
-
-      alert(msg || "The password has been changed successfully.")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
-      setShowChangePasswordForm(false)
-    } catch (err: any) {
-      alert(`Network error: ${err?.message || err}`)
-    }
+  const auth = getAuthFromStorage();
+  if (!auth?.jwt) {
+    alert("Not authenticated. Please log in again.");
+    return;
   }
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    alert("Please fill in all password fields.");
+    return;
+  }
+
+  const res = await apiChangePassword({
+    current_password: currentPassword,
+    new_password: newPassword,
+    confirm_password: confirmPassword,
+  });
+
+  if (!res.ok) {
+    const msg =
+      (res.json && typeof res.json?.message === "string" && res.json.message) ||
+      res.text ||
+      `HTTP ${res.status}`;
+    toast({ variant: "destructive", title: "Change password failed", description: msg });
+    return;
+  }
+
+  // 1) success message (same behavior you had)
+  const successMsg =
+    (res.json && typeof res.json?.message === "string" && res.json.message) ||
+    res.text ||
+    "The password has been changed successfully.";
+  toast({ title: "Password changed", description: successMsg });
+
+  // 2) Immediately re-login to get the *new* JWT
+  try {
+    const userId = adminData?.customId; // your AdminData has customId
+    if (userId) {
+      const login = await apiAdminLogin({ userId, password: newPassword });
+
+      if (login.ok && login.json?.code === 200 && login.json?.jwt) {
+        try {
+          localStorage.setItem(
+            "wazzap_auth",
+            JSON.stringify({ userId, jwt: login.json.jwt })
+          );
+        } catch {}
+      } else {
+        console.warn("Re-login after password change failed:", login);
+        // Optional: prompt user to log in again manually
+      }
+    }
+  } catch (e) {
+    console.warn("Re-login error:", e);
+  }
+
+  // 3) Clean up UI
+  setCurrentPassword("");
+  setNewPassword("");
+  setConfirmPassword("");
+  setShowChangePasswordForm(false);
+
+  // 4) Refresh info with the new JWT
+  await refreshAdminInfo();
+}
+
 
   const handleCancelCreateSubAccount = () => {
-    setNewSubAccountName("")
-    setNewSubAccountWhatsappLimit("1")
-    setShowCreateSubAccountModal(false)
-  }
+    setNewSubAccountName("");
+    setNewSubAccountWhatsappLimit("1");
+    setShowCreateSubAccountModal(false);
+  };
 
+  // ------------------------------ UI ------------------------------
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
@@ -342,9 +294,9 @@ export default function AdminPanel({ data }: AdminPanelProps) {
                   </div>
                   <button
                     onClick={() => {
-                      setShowAdminUserDropdown(false)
+                      setShowAdminUserDropdown(false);
                       // simplest: full reload (JWT state resets)
-                      window.location.reload()
+                      window.location.reload();
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
                   >
@@ -457,7 +409,12 @@ export default function AdminPanel({ data }: AdminPanelProps) {
             </div>
 
             {/* Sub-Account Management */}
-            <SubAccountPanel items={subaccounts} />
+            <SubAccountPanel
+  items={subaccounts}
+  onChanged={async () => {
+    await refreshAdminInfo(); // or whatever method you use to reload
+  }}
+/>
           </>
         )}
 
@@ -531,8 +488,8 @@ export default function AdminPanel({ data }: AdminPanelProps) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={() => {
-                        if (stripeUrl) window.open(stripeUrl, "_blank")
-                        else console.log("Manage subscription clicked")
+                        if (stripeUrl) window.open(stripeUrl, "_blank");
+                        else console.log("Manage subscription clicked");
                       }}
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm"
                     >
@@ -599,10 +556,10 @@ export default function AdminPanel({ data }: AdminPanelProps) {
                       </button>
                       <button
                         onClick={() => {
-                          setShowChangePasswordForm(false)
-                          setCurrentPassword("")
-                          setNewPassword("")
-                          setConfirmPassword("")
+                          setShowChangePasswordForm(false);
+                          setCurrentPassword("");
+                          setNewPassword("");
+                          setConfirmPassword("");
                         }}
                         className="px-4 py-2 bg-slate-300 hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors text-sm"
                       >
@@ -670,5 +627,5 @@ export default function AdminPanel({ data }: AdminPanelProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

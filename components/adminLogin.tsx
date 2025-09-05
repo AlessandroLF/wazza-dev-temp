@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import styles from "./adminLogin.module.css";
 import WazzapFace from "./wazzapFace";
+import { apiAdminLogin } from "@/lib/api/admin";
 
 type AdminLoginProps = {
   userId: string;
@@ -16,15 +17,10 @@ export default function AdminLogin({ userId, onSuccess }: AdminLoginProps) {
   const [showPw, setShowPw] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // focus password when the panel opens
   useEffect(() => {
-    if (open) {
-      // slight delay to ensure element is mounted
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
-  // close on Esc
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -35,57 +31,40 @@ export default function AdminLogin({ userId, onSuccess }: AdminLoginProps) {
   }, [open]);
 
   const handleSignIn = useCallback(async () => {
-    if (!password || submitting) return;
-    setSubmitting(true);
-    setError(null);
+  if (!password || submitting) return;
+  setSubmitting(true);
+  setError(null);
 
-    try {
-      const res = await fetch("https://dev-api-front.wazzap.me/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-        body: JSON.stringify({ id: userId, password }),
-      });
+  try {
+    const { ok, json } = await apiAdminLogin({ userId, password });
 
-      let json: any = null;
-      try {
-        json = await res.json();
-      } catch {
-        // ignore parse errors; will be handled by checks below
-      }
-
-      if (!res.ok || !json || json.code !== 200 || !json.jwt) {
-        setError("Invalid password or server error. Please try again.");
-        console.error("Login failed:", json);
-        return;
-      }
-
-      // ⚠️ Consider httpOnly cookies on the server instead of localStorage
-      try {
-        localStorage.setItem(
-          "wazzap_auth",
-          JSON.stringify({ userId, jwt: json.jwt })
-        );
-      } catch {
-        // storage may be unavailable (e.g., Safari private mode). Non-fatal.
-      }
-
-      onSuccess?.({ jwt: json.jwt, data: json.data });
-      setOpen(false);
-      setPassword("");
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Network error. Check your connection and try again.");
-    } finally {
-      setSubmitting(false);
+    // invalid creds / server error
+    if (!ok || !json || json.code !== 200 || !json.jwt) {
+      setError("Invalid password or server error. Please try again.");
+      console.error("Login failed:", json);
+      return; // <-- we still hit finally below
     }
-  }, [password, submitting, userId, onSuccess]);
 
-  function handleDummyContinue() {
-    // simulate a successful login
-    onSuccess?.({ jwt: "dummy-jwt", data: { userId } });
+    // success: persist and close
+    try {
+      localStorage.setItem(
+        "wazzap_auth",
+        JSON.stringify({ userId, jwt: json.jwt })
+      );
+    } catch {}
+
+    onSuccess?.({ jwt: json.jwt, data: json.data });
     setOpen(false);
+    setPassword("");
+  } catch (err) {
+    console.error("Login error:", err);
+    setError("Network error. Check your connection and try again.");
+  } finally {
+    // ALWAYS re-enable the button
+    setSubmitting(false);
   }
+}, [password, submitting, userId, onSuccess]);
+
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -94,8 +73,8 @@ export default function AdminLogin({ userId, onSuccess }: AdminLoginProps) {
 
   return (
     <div className={styles.root}>
-        <WazzapFace className={styles.logo} />
-      {!open ? (<div>
+      <WazzapFace className={styles.logo} />
+      {!open ? (
         <button
           className={styles.btnSignin}
           onClick={() => setOpen(true)}
@@ -104,12 +83,6 @@ export default function AdminLogin({ userId, onSuccess }: AdminLoginProps) {
         >
           Sign In
         </button>
-        <button
-            className={styles.btnDummy}
-            onClick={handleDummyContinue}
-          >
-            Continue without login
-          </button></div>
       ) : (
         <div
           className={styles.panel}
@@ -166,7 +139,6 @@ export default function AdminLogin({ userId, onSuccess }: AdminLoginProps) {
               className={styles.continue}
               disabled={submitting || !password}
             >
-              {/* keep width stable to avoid layout shift */}
               <span className={styles.btnLabel}>
                 {submitting ? "Checking…" : "Continue"}
               </span>
