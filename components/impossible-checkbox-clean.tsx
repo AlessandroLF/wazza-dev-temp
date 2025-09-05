@@ -9,6 +9,7 @@ export default function ImpossibleCheckboxClean() {
   const [attempts, setAttempts] = useState(0)
   const [usedMessages, setUsedMessages] = useState<number[]>([])
   const [currentMessage, setCurrentMessage] = useState("")
+  const [isDisabled, setIsDisabled] = useState(false)
 
   const messages = [
     "Nice try! But this feature is too powerful to enable.",
@@ -81,10 +82,11 @@ export default function ImpossibleCheckboxClean() {
   ]
 
   const handleToggle = () => {
-    if (!isChecked) {
+    if (!isChecked && !isDisabled) {
       setIsChecked(true)
       setAttempts((prev) => prev + 1)
       setShowMessage(true)
+      setIsDisabled(true)
 
       let availableIndices = []
       for (let i = 0; i < messages.length; i++) {
@@ -93,7 +95,6 @@ export default function ImpossibleCheckboxClean() {
         }
       }
 
-      // Reset used messages if all have been shown
       if (availableIndices.length === 0) {
         availableIndices = Array.from({ length: messages.length }, (_, i) => i)
         setUsedMessages([])
@@ -107,7 +108,8 @@ export default function ImpossibleCheckboxClean() {
         setIsChecked(false)
         setTimeout(() => {
           setShowMessage(false)
-        }, 7000) // Changed from 3000 to 7000 (7 seconds)
+          setIsDisabled(false)
+        }, 7000)
       }, 2000)
     }
   }
@@ -124,9 +126,10 @@ export default function ImpossibleCheckboxClean() {
 
         <button
           onClick={handleToggle}
+          disabled={isDisabled}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
             isChecked ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
-          }`}
+          } ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
         >
           <span
             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${
@@ -136,7 +139,6 @@ export default function ImpossibleCheckboxClean() {
         </button>
       </div>
 
-      {/* Message popup */}
       {showMessage && (
         <div
           className={`p-4 rounded-xl border transition-all duration-500 ${
@@ -167,8 +169,7 @@ export default function ImpossibleCheckboxClean() {
                   isChecked ? "text-blue-700 dark:text-blue-300" : "text-red-700 dark:text-red-300"
                 }`}
               >
-                {isChecked ? "Initializing quantum stability protocols..." : currentMessage}{" "}
-                {/* Use currentMessage instead of array lookup */}
+                {isChecked ? "Initializing quantum stability protocols..." : currentMessage}
               </p>
             </div>
           </div>

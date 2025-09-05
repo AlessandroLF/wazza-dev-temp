@@ -623,7 +623,6 @@ export default function Dashboard() {
       2: false,
       3: false,
       4: false,
-      5: false,
     })
   }
 
@@ -853,7 +852,7 @@ export default function Dashboard() {
                 <div className="mb-8">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                     <div>
-                      <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                      <h2 className="text-3xl font-medium tracking-tight text-slate-900 dark:text-slate-100">
                         Wazzap Sub-Account
                       </h2>
                     </div>
@@ -1013,7 +1012,7 @@ justify-between"
                         {/* Switch Voice Command */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">#switch_voice</h3>
+                            <h3 className="text-lg font-normal text-slate-900 dark:text-slate-100">#switch_voice</h3>
                             <Button
                               size="sm"
                               onClick={() => navigator.clipboard.writeText("#switch_voice|2|message")}
@@ -1039,7 +1038,7 @@ justify-between"
                         {/* Location Command */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">#location</h3>
+                            <h3 className="text-lg font-normal text-slate-900 dark:text-slate-100">#location</h3>
                             <Button
                               size="sm"
                               onClick={() =>
@@ -1069,7 +1068,7 @@ justify-between"
                         {/* Contact Command */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">#contact</h3>
+                            <h3 className="text-lg font-normal text-slate-900 dark:text-slate-100">#contact</h3>
                             <Button
                               size="sm"
                               onClick={() => navigator.clipboard.writeText("#contact|John Doe|521777888123")}
@@ -1095,7 +1094,7 @@ justify-between"
                         {/* Voice Command */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">#voice</h3>
+                            <h3 className="text-lg font-normal text-slate-900 dark:text-slate-100">#voice</h3>
                             <Button
                               size="sm"
                               onClick={() => navigator.clipboard.writeText("#voice|Hello, how are you?")}
@@ -1736,7 +1735,7 @@ justify-between"
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-80 shadow-xl border border-slate-200 dark:border-slate-700">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300">Admin Access</h2>
+                  <h2 className="text-xl font-normal text-slate-700 dark:text-slate-300">Admin Access</h2>
                   <button
                     onClick={() => setIsAdminLoginOpen(false)}
                     className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl"
@@ -1780,7 +1779,7 @@ justify-between"
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl border border-slate-200 dark:border-slate-700">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin Panel</h2>
+                  <h2 className="text-2xl font-medium text-slate-900 dark:text-slate-100">Admin Panel</h2>
                   <button
                     onClick={() => setIsAdminPanelOpen(false)}
                     className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl"
@@ -1844,7 +1843,7 @@ justify-between"
 
                 {/* Sub-Account Card */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Active Sub-Accounts</h3>
+                  <h3 className="text-lg font-normal text-slate-900 dark:text-slate-100 mb-4">Active Sub-Accounts</h3>
                   <Card className="rounded-2xl border-slate-200 dark:border-slate-700 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -1853,7 +1852,7 @@ justify-between"
                             <span className="text-lg font-bold text-green-600 dark:text-green-400">W</span>
                           </div>
                           <div>
-                            <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                            <h4 className="text-lg font-normal text-slate-900 dark:text-slate-100">
                               Wazzap Sub-Account
                             </h4>
                             <p className="text-sm text-slate-600 dark:text-slate-400">Using 5 of 50 numbers</p>
@@ -1906,7 +1905,7 @@ justify-between"
                 <div className="h-6 w-6 bg-yellow-500 rounded flex items-center justify-center">
                   <span className="text-xs font-bold text-black">⚠</span>
                 </div>
-                <h3 className="text-lg font-semibold">Edit Sub-Account</h3>
+                <h3 className="text-lg font-normal">Edit Sub-Account</h3>
               </div>
               <button
                 onClick={() => setShowEditSubAccount(false)}
@@ -2002,7 +2001,7 @@ justify-between"
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-8 max-w-sm w-full mx-4 border border-slate-200 dark:border-slate-700">
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6">Are you sure?</h3>
+              <h3 className="text-lg font-normal text-slate-900 dark:text-slate-100 mb-6">Are you sure?</h3>
               <div className="flex gap-4 justify-center">
                 <button
                   onClick={() => {
