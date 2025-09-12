@@ -9,6 +9,7 @@ const config = {
     "./src/**/*.{ts,tsx}",
     "./*.{ts,tsx}",
     "*.{js,ts,jsx,tsx,mdx}",
+    "./marketing/**/*.{ts,tsx,mdx}",
   ],
   prefix: "",
   theme: {
@@ -57,11 +58,22 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        brand: {
+          lime: "#E7FB62", // Brand 1 (lime)
+          teal: "#09403C", // deep teal
+          bg: "#EBF6F6",   // page background
+        },
+        ink: { DEFAULT: "#282828" }, // dark text used in CTAs
+        white: "#ffffff",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        pill: "9999px",
+      },
+      boxShadow: {
+        soft: "0 8px 24px rgba(0,0,0,0.08)",
       },
       keyframes: {
         "accordion-down": {

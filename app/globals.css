@@ -4,7 +4,6 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -282,4 +281,31 @@
     padding-bottom: 0;
     font-size: 0.75rem;
   }
+}
+
+/* --- Wazzap landing helpers --- */
+
+/* L-shaped reveal (desktop) */
+.hero-mask {
+  clip-path: polygon(0 0, 100% 0, 100% 28%, 76% 28%, 76% 72%, 24% 72%, 24% 100%, 0 100%);
+  transition: clip-path 900ms cubic-bezier(.22,1,.36,1);
+}
+.hero-mask.is-open {
+  clip-path: polygon(0 0, 100% 0, 100% 0, 100% 0, 100% 100%, 100% 100%, 0 100%, 0 100%);
+}
+
+/* Mobile tweak */
+@media (max-width: 640px) {
+  .hero-mask {
+    clip-path: polygon(0 0, 100% 0, 100% 35%, 64% 35%, 64% 80%, 36% 80%, 36% 100%, 0 100%);
+  }
+}
+
+/* Preloader text echoes */
+.preload-echo-1 { opacity: .30; filter: blur(1px); transform: translate(8px, 4px); }
+.preload-echo-2 { opacity: .15; filter: blur(2px); transform: translate(16px, 8px); }
+
+/* Reduce motion: disable transitions */
+@media (prefers-reduced-motion: reduce) {
+  .hero-mask { transition: none; }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Users, Settings, Phone, Plus, LogOut, Bell } from "lucide-react";
+import { Users, Settings, Phone, Plus, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SubAccountPanel from "./sub-account-panel";
@@ -9,48 +9,75 @@ import ImpossibleCheckboxClean from "./impossible-checkbox-clean";
 import { useToast } from "@/components/ui/use-toast";
 
 import {
-  setAuth,
   apiAdminLogin,
   apiAdminCheck,
   apiAdminInfo,
   apiCreateSubaccount,
   apiChangePassword,
   getAuthFromStorage,
+  setAuth,
   type AdminData,
   type SubscriptionStats,
   type SubAccountItem,
-} from "@/lib/api/admin"; // <- adjust to a relative path if needed
+} from "@/lib/api/admin";
 
-type AdminPanelProps = {
-  data: AdminData;
-};
-
+// ---------------- utils ----------------
 const pct = (used?: number, total?: number) =>
   !total || total <= 0 || !used ? 0 : Math.round((used / total) * 100);
 
 const POLL_MS = 60_000;
 
+// Hydration-safe, deterministic date (UTC) to avoid SSR/CSR drift
+function formatDateUTC(dateStr?: string) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+type AdminPanelProps = {
+  data: AdminData;
+};
+
 export default function AdminPanel({ data }: AdminPanelProps) {
+  const { toast } = useToast();
+
+  // mount guard (for hydration-safe bits like formatted dates)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [adminActiveNav, setAdminActiveNav] = useState<"sub-accounts" | "settings">("sub-accounts");
   const [showAdminUserDropdown, setShowAdminUserDropdown] = useState(false);
   const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
   const [showCreateSubAccountModal, setShowCreateSubAccountModal] = useState(false);
+
+  // Create sub-account
   const [newSubAccountName, setNewSubAccountName] = useState("");
   const [newSubAccountWhatsappLimit, setNewSubAccountWhatsappLimit] = useState("1");
+
+  // Change password
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Settings
   const [customMenuUrl, setCustomMenuUrl] = useState("https://panel.wazzap.mx/g/{{location.id}}");
   const adminUserDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Live data
   const [adminData, setAdminData] = useState<AdminData>(data);
   const [subscription, setSubscription] = useState<SubscriptionStats | null>(null);
   const [subaccounts, setSubaccounts] = useState<SubAccountItem[]>([]);
   const [stripeUrl, setStripeUrl] = useState<string | null>(null);
 
-  const { toast } = useToast();
-
-  // --------- Queries (unchanged behavior via API helpers) ----------
+  // --------- Queries ----------
   async function refreshAdminData(signal?: AbortSignal) {
     const auth = getAuthFromStorage();
     if (!auth?.jwt) return;
@@ -97,123 +124,120 @@ export default function AdminPanel({ data }: AdminPanelProps) {
   }
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    refreshAdminData(ctrl.signal);
-    const iv = setInterval(() => refreshAdminData(ctrl.signal), POLL_MS);
+  // just do an immediate refresh; no shared AbortController
+  refreshAdminData();
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "wazzap_auth") refreshAdminData(ctrl.signal);
-    };
-    window.addEventListener("storage", onStorage);
+  const iv = setInterval(() => {
+    // each tick calls without a stale/aborted signal
+    refreshAdminData();
+  }, POLL_MS);
 
-    return () => {
-      clearInterval(iv);
-      window.removeEventListener("storage", onStorage);
-      ctrl.abort();
-    };
-  }, []);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === "wazzap_auth") refreshAdminData();
+  };
+  window.addEventListener("storage", onStorage);
+
+  return () => {
+    clearInterval(iv);
+    window.removeEventListener("storage", onStorage);
+  };
+}, []);
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    refreshAdminInfo(ctrl.signal);
-    return () => ctrl.abort();
+    refreshAdminInfo();
   }, []);
 
-  // --------- Mutations (preserve original shapes/messages) ----------
+  // --------- Mutations ----------
   async function handleCreateSubAccountSave() {
     const auth = getAuthFromStorage();
     if (!auth?.jwt) {
-      alert("Not authenticated. Please log in again.");
+      toast({ variant: "destructive", title: "Not authenticated", description: "Please log in again." });
       return;
     }
 
     const name = newSubAccountName.trim();
     const instances = Number(newSubAccountWhatsappLimit || "0") || 0;
+
     if (!name || instances <= 0) {
-      alert("Please provide a valid name and whatsapp limit.");
+      toast({
+        variant: "destructive",
+        title: "Invalid data",
+        description: "Please provide a valid name and WhatsApp limit.",
+      });
       return;
     }
 
     const res = await apiCreateSubaccount({ name, instances, type: "GHL" });
 
-  if (!res.ok) {
-    const msg = (res.json?.message as string) || res.text || `HTTP ${res.status}`;
-    toast({ variant: "destructive", title: "Create failed", description: msg });
-    return;
-  }
+    if (!res.ok) {
+      const msg = (res.json?.message as string) || res.text || `HTTP ${res.status}`;
+      toast({ variant: "destructive", title: "Create failed", description: msg });
+      return;
+    }
 
-  toast({ title: "Subaccount created", description: (res.json?.message as string) || "Done." });
-  setShowCreateSubAccountModal(false);
-  setNewSubAccountName("");
-  setNewSubAccountWhatsappLimit("1");
-  await refreshAdminInfo();
+    toast({ title: "Subaccount created", description: (res.json?.message as string) || "Done." });
+    setShowCreateSubAccountModal(false);
+    setNewSubAccountName("");
+    setNewSubAccountWhatsappLimit("1");
+    await refreshAdminInfo();
   }
 
   async function handleChangePassword() {
-  const auth = getAuthFromStorage();
-  if (!auth?.jwt) {
-    alert("Not authenticated. Please log in again.");
-    return;
-  }
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    alert("Please fill in all password fields.");
-    return;
-  }
+    const auth = getAuthFromStorage();
+    if (!auth?.jwt) {
+      toast({ variant: "destructive", title: "Not authenticated", description: "Please log in again." });
+      return;
+    }
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ variant: "destructive", title: "Missing fields", description: "Fill in all password fields." });
+      return;
+    }
 
-  const res = await apiChangePassword({
-    current_password: currentPassword,
-    new_password: newPassword,
-    confirm_password: confirmPassword,
-  });
+    const res = await apiChangePassword({
+      current_password: currentPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
 
-  if (!res.ok) {
-    const msg =
+    if (!res.ok) {
+      const msg =
+        (res.json && typeof res.json?.message === "string" && res.json.message) ||
+        res.text ||
+        `HTTP ${res.status}`;
+      toast({ variant: "destructive", title: "Change password failed", description: msg });
+      return;
+    }
+
+    const successMsg =
       (res.json && typeof res.json?.message === "string" && res.json.message) ||
       res.text ||
-      `HTTP ${res.status}`;
-    toast({ variant: "destructive", title: "Change password failed", description: msg });
-    return;
-  }
+      "The password has been changed successfully.";
+    toast({ title: "Password changed", description: successMsg });
 
-  // 1) success message (same behavior you had)
-  const successMsg =
-    (res.json && typeof res.json?.message === "string" && res.json.message) ||
-    res.text ||
-    "The password has been changed successfully.";
-  toast({ title: "Password changed", description: successMsg });
-
-  // 2) Immediately re-login to get the *new* JWT
-  try {
-    const userId = adminData?.customId; // your AdminData has customId
-    if (userId) {
-      const login = await apiAdminLogin({ userId, password: newPassword });
-
-      if (login.ok && login.json?.code === 200 && login.json?.jwt) {
-        try {
-          localStorage.setItem(
-            "wazzap_auth",
-            JSON.stringify({ userId, jwt: login.json.jwt })
-          );
-        } catch {}
-      } else {
-        console.warn("Re-login after password change failed:", login);
-        // Optional: prompt user to log in again manually
+    // Immediately re-login to get the *new* JWT
+    try {
+      const userId = adminData?.customId;
+      if (userId) {
+        const login = await apiAdminLogin({ userId, password: newPassword });
+        if (login.ok && login.json?.code === 200 && login.json?.jwt) {
+          // Store via helper (supports multiple userIds)
+          setAuth(userId, login.json.jwt, true);
+          toast({ title: "Session updated", description: "Your session token was refreshed." });
+        } else {
+          console.warn("Re-login after password change failed:", login);
+        }
       }
+    } catch (e) {
+      console.warn("Re-login error:", e);
     }
-  } catch (e) {
-    console.warn("Re-login error:", e);
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowChangePasswordForm(false);
+
+    await refreshAdminInfo();
   }
-
-  // 3) Clean up UI
-  setCurrentPassword("");
-  setNewPassword("");
-  setConfirmPassword("");
-  setShowChangePasswordForm(false);
-
-  // 4) Refresh info with the new JWT
-  await refreshAdminInfo();
-}
-
 
   const handleCancelCreateSubAccount = () => {
     setNewSubAccountName("");
@@ -267,7 +291,7 @@ export default function AdminPanel({ data }: AdminPanelProps) {
           <div className="flex items-center gap-3">
             <div className="relative">
               <button
-                onClick={() => console.log("Notifications clicked")}
+                onClick={() => toast({ title: "Notifications", description: "No new notifications." })}
                 className="relative p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 title="Notifications"
               >
@@ -295,7 +319,7 @@ export default function AdminPanel({ data }: AdminPanelProps) {
                   <button
                     onClick={() => {
                       setShowAdminUserDropdown(false);
-                      // simplest: full reload (JWT state resets)
+                      // simplest: full reload (JWT state resets in your storage model)
                       window.location.reload();
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
@@ -410,11 +434,11 @@ export default function AdminPanel({ data }: AdminPanelProps) {
 
             {/* Sub-Account Management */}
             <SubAccountPanel
-  items={subaccounts}
-  onChanged={async () => {
-    await refreshAdminInfo(); // or whatever method you use to reload
-  }}
-/>
+              items={subaccounts}
+              onChanged={async () => {
+                await refreshAdminInfo();
+              }}
+            />
           </>
         )}
 
@@ -437,7 +461,7 @@ export default function AdminPanel({ data }: AdminPanelProps) {
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Subscription Expires:</span>
                   <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-                    {subscription?.expiredAt ? new Date(subscription.expiredAt).toLocaleDateString() : "—"}
+                    {mounted ? formatDateUTC(subscription?.expiredAt) : "—"}
                   </span>
                 </div>
               </div>
@@ -489,7 +513,7 @@ export default function AdminPanel({ data }: AdminPanelProps) {
                     <button
                       onClick={() => {
                         if (stripeUrl) window.open(stripeUrl, "_blank");
-                        else console.log("Manage subscription clicked");
+                        else toast({ title: "Manage subscription", description: "Stripe link not available." });
                       }}
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm"
                     >
