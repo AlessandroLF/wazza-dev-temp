@@ -6,6 +6,8 @@ import Preloader from "./sections/preloader";
 import CommunityPopup from "./sections/popup";
 import StickyCTA from "./sections/sticky-cta";
 import Proof from "./sections/proof";
+import PainPoints from "./sections/painpoints";
+import Steps from "./sections/steps";
 
 export default function LandingPage() {
   const [heroReady, setHeroReady] = useState(false);
@@ -41,9 +43,10 @@ export default function LandingPage() {
   }, []);
 
   return (
-     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#EBF6F6] pb-[25vh]">
+     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#EBF6F6] ">
       <Hero onLoaded={handleHeroLoaded} />
       <Proof />
+      <PainPoints />
 
       {!preHidden && (
         <Preloader
