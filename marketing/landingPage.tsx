@@ -7,7 +7,7 @@ import CommunityPopup from "./sections/popup";
 import StickyCTA from "./sections/sticky-cta";
 import Proof from "./sections/proof";
 import PainPoints from "./sections/painpoints";
-import Steps from "./sections/steps";
+import Features from "./sections/features";
 
 export default function LandingPage() {
   const [heroReady, setHeroReady] = useState(false);
@@ -47,6 +47,7 @@ export default function LandingPage() {
       <Hero onLoaded={handleHeroLoaded} />
       <Proof />
       <PainPoints />
+      <Features />
 
       {!preHidden && (
         <Preloader

@@ -88,6 +88,13 @@ export default function Painpoints() {
     { primary: "/painpoints/5.svg", fallback: "/5.svg", title: ["Works only with", "approved business", "numbers"] },
   ];
 
+  // Steps rail data
+  const STEPS: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> = [
+    { iconPrimary: "/steps/1.svg", iconFallback: "/steps/1.svg", title: "Scan QR Code", copy: "Easily link any WhatsApp number in seconds — no approval required." },
+    { iconPrimary: "/steps/2.svg", iconFallback: "/steps/2.svg", title: "Connect Your Automation Tool", copy: "Integrate with your favorite CRM instantly, without coding or complex setups." },
+    { iconPrimary: "/steps/3.svg", iconFallback: "/steps/3.svg", title: "Start Sending Messages", copy: "Send unlimited messages, template buttons, and voice replies — all from one dashboard." },
+  ];
+
   // --- controls ---
   // Nudge line to match union (positive = move line slightly down)
   const LINE_NUDGE_PX = -6;
@@ -97,6 +104,7 @@ export default function Painpoints() {
   const LINE_SCALE_Y = 0.40;
 
   return (
+    <>
     <section
       id="painpoints"
       className="relative h-screen w-screen overflow-hidden bg-[#0B3F3B]"
@@ -192,13 +200,42 @@ export default function Painpoints() {
             </div>
           </div>
 
-          {/* Rightmost headline INSIDE the scroll area (bigger) */}
           <div className="absolute right-[4vw] top-[9vh] z-20">
             <h3 className="font-display font-extrabold text-white leading-[0.9] tracking-[-0.01em] text-[clamp(20px,2.6vw,38px)] text-right">
               <span className="block">Connect any</span>
               <span className="block">WhatsApp in</span>
               <span className="block">3 Simple Steps</span>
             </h3>
+          </div>
+        </div>
+      </div>
+      <StepsPanel steps={STEPS} />
+    </section>
+
+    </>
+  );
+}
+
+/* ---------- steps panel (new component) ---------- */
+function StepsPanel({ steps }: { steps: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> }) {
+  return (
+    <section id="steps" className="relative w-screen min-h-[80vh] bg-[#0B3F3B]">
+      <div className="mx-auto max-w-[1200px] px-[4vw] py-[10vh]">
+        <div className="ml-auto w-[min(40rem,34vw)]">
+          <div className="flex flex-col gap-8">
+            {steps.map((s, i) => (
+              <div key={i} className="flex items-start gap-4">
+                <IconImg
+                  srcPrimary={s.iconPrimary}
+                  srcFallback={s.iconFallback}
+                  className="h-[clamp(40px,3.2vw,56px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
+                />
+                <div className="text-white">
+                  <h4 className="text-[clamp(18px,2vw,28px)] font-extrabold leading-tight">{s.title}</h4>
+                  <p className="mt-1 text-white/90 text-[clamp(12px,1.1vw,14px)] leading-snug">{s.copy}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -210,9 +247,11 @@ export default function Painpoints() {
 function IconImg({
   srcPrimary,
   srcFallback,
+  className,
 }: {
   srcPrimary: string;
   srcFallback: string;
+  className?: string;
 }) {
   const [src, setSrc] = useState(srcPrimary);
   return (
@@ -223,7 +262,7 @@ function IconImg({
       }}
       alt=""
       draggable={false}
-      className="h-[clamp(56px,7vw,120px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
+      className={className ?? "h-[clamp(56px,7vw,120px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"}
     />
   );
 }
