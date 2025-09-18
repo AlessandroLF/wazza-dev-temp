@@ -8,6 +8,10 @@ import StickyCTA from "./sections/sticky-cta";
 import Proof from "./sections/proof";
 import PainPoints from "./sections/painpoints";
 import Features from "./sections/features";
+import Compare from "./sections/compare";
+import Pricing from "./sections/pricing";
+import AffiliateHero from "./sections/affiliate-hero";
+import Testimonials from "./sections/testimonies";
 
 export default function LandingPage() {
   const [heroReady, setHeroReady] = useState(false);
@@ -48,6 +52,11 @@ export default function LandingPage() {
       <Proof />
       <PainPoints />
       <Features />
+      <Compare />
+      <Pricing />
+      <AffiliateHero />
+      <Testimonials />
+      
 
       {!preHidden && (
         <Preloader
