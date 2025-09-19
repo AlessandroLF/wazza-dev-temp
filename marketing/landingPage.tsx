@@ -12,6 +12,8 @@ import Compare from "./sections/compare";
 import Pricing from "./sections/pricing";
 import AffiliateHero from "./sections/affiliate-hero";
 import Testimonials from "./sections/testimonies";
+import Video from "./sections/video"
+import Founders from "./sections/founders";
 
 export default function LandingPage() {
   const [heroReady, setHeroReady] = useState(false);
@@ -56,6 +58,8 @@ export default function LandingPage() {
       <Pricing />
       <AffiliateHero />
       <Testimonials />
+      <Video />
+      <Founders />
       
 
       {!preHidden && (

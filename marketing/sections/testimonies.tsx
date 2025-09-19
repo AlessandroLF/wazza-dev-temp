@@ -67,13 +67,24 @@ export default function Testimonials() {
 
     let width = 0;
     let height = 0;
+    // responsive sizing
+    let scale = 1;
+    let cardW = CARD_W, cardH = CARD_H, gap = GAP;
 
     const setSize = () => {
       const rect = wrap.getBoundingClientRect();
       width = rect.width;
-      // clamp height for small screens
-      const targetH = Math.min(CANVAS_HEIGHT, Math.max(220, rect.width * 0.38));
-      height = targetH;
+
+      // Aim to fit ~5 cards on very wide, ~4 on desktop, ~3 on tablet, ~1.8 on phones
+      const targetVisible = width > 1500 ? 5 : width > 1200 ? 4 : width > 800 ? 3 : 1.8;
+      const idealRowW = targetVisible * CARD_W + (targetVisible - 1) * GAP;
+      scale = Math.min(1, width / (idealRowW + 40));
+      cardW = CARD_W * scale;
+      cardH = CARD_H * scale;
+      gap = GAP * scale;
+
+      const usableH = wrap.clientHeight || window.innerHeight;
+height = Math.max(Math.min(usableH * 0.72, cardH + 120), 280);
 
       renderer.setSize(width, height, false);
 
@@ -89,11 +100,11 @@ export default function Testimonials() {
     const layout = () => {
       if (!planes.length) return;
       const total = planes.length;
-      const stripW = total * CARD_W + (total - 1) * GAP;
-      // start left so the middle trio sits center-ish
-      let startX = -stripW / 2 + CARD_W / 2;
+      const stripW = total * cardW + (total - 1) * gap;
+      let startX = -stripW / 2 + cardW / 2;
       planes.forEach((m, idx) => {
-        m.position.set(startX + idx * (CARD_W + GAP), 0, 0);
+        m.position.set(startX + idx * (cardW + gap), 0, 0);
+        m.scale.set(scale, scale, 1);
       });
     };
 
@@ -112,8 +123,8 @@ export default function Testimonials() {
 
       // wrap if off screen to the right
       const halfW = width / 2;
-      const span = CARD_W + GAP;
-      const rightEdge = halfW + CARD_W;
+      const span = cardW + gap;
+      const rightEdge = halfW + cardW;
       const leftReset = -halfW - CARD_W;
       planes.forEach((m) => {
         if (m.position.x - CARD_W / 2 > rightEdge) {
@@ -141,12 +152,25 @@ export default function Testimonials() {
   }, []);
 
   return (
-    <section id="testimonials" className="w-screen" style={{ backgroundColor: SECTION_BG, padding: "8vh 0" }}>
-      <div className="mx-auto max-w-[1200px] px-[4vw]">
+    <section id="testimonials" className="w-screen h-[100svh] flex items-center"
+         style={{ backgroundColor: SECTION_BG, padding: "8vh 0" }}>
+      <div className="mx-auto w-full px-[2vw]">
         <h2 className="text-center font-display font-extrabold text-[#0B3F3B] text-[clamp(24px,3.2vw,44px)]">Real Testimonials</h2>
 
-        <div ref={wrapRef} className="relative mt-6">
+        <div ref={wrapRef} className="relative mt-6 mx-auto w-[min(96vw,1700px)]">
           <canvas ref={canvasRef} className="block w-full h-auto" />
+        </div>
+
+        {/* Mobile promo text */}
+        <div className="md:hidden mt-8 text-center px-[6vw]">
+          <h3 className="font-display font-extrabold text-[#0B3F3B] text-[22px] leading-tight">
+            Learn Now to Build
+            <br />Your Whatsapp
+            <br />Marketing Agency
+          </h3>
+          <p className="mt-2 text-[#0B3F3B]/80 text-[14px]">
+            How to launch, market, sell and deliver
+          </p>
         </div>
       </div>
 
