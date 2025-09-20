@@ -23,9 +23,9 @@ export default function Footer() {
       <div className="relative mx-auto max-w-[1600px] px-[4vw] pt-[8vh] pb-[24vh]">
         {/* Flower wrapper */}
         <div
-          className="relative mx-auto pointer-events-none w-[90vw] max-w-[1400px] md:h-[min(64vh,720px)] z-0"
+          className="relative mx-auto pointer-events-none w-[90vw] max-w-[1400px] md:h-[min(30vh,50px)] z-0"
           style={{
-            height: `min(${MOBILE_HEIGHT_VH}vh, 640px)`,
+            height: `min(${MOBILE_HEIGHT_VH}vh, 300px)`,
             transform: `translateY(${MOBILE_SHIFT_VH}vh)`,
           }}
         >

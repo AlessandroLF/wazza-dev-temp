@@ -20,7 +20,6 @@ export default function LanguageButton() {
     })();
   }, []);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
@@ -34,35 +33,33 @@ export default function LanguageButton() {
 
   return (
     <div className="relative">
-      {/* Pure circular flag button — no label */}
+      {/* Give the button a BASE size so it's visible on mobile */}
       <button
-  ref={btnRef}
-  type="button"
-  onClick={() => setOpen((v) => !v)}
-  aria-label="Change language"
-  className="
-    relative overflow-hidden rounded-full
-    sm:size-[35px]              /* keeps it circular */
-    bg-white ring-[6px] ring-white/95   /* thicker circle */
-    shadow-[0_4px_20px_rgba(0,0,0,0.12)]
-    leading-none
-  "
->
-  {/* fill height, center horizontally, small zoom to kill inner padding */}
-  <img
-    src={selected?.src || "/flags/260-united-kingdom.svg"}
-    alt=""
-    draggable={false}
-    className="
-      absolute inset-y-0 left-1/2 -translate-x-1/2
-      h-full w-auto max-w-none object-cover block
-      scale-[1.5]
-    "
-  />
-</button>
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Change language"
+        className="
+          relative size-[34px] overflow-hidden rounded-full   /* base size */
+          sm:size-[35px]
+          bg-white ring-[6px] ring-white/95
+          shadow-[0_4px_20px_rgba(0,0,0,0.12)]
+          leading-none
+        "
+      >
+        <img
+          src={selected?.src || "/flags/260-united-kingdom.svg"}
+          alt=""
+          draggable={false}
+          className="
+            absolute inset-y-0 left-1/2 -translate-x-1/2
+            h-full w-auto max-w-none object-cover block
+            scale-[1.5]
+          "
+        />
+      </button>
 
-
-      {/* Dropdown (still shows names so you can use it later) */}
+      {/* Simple dropdown */}
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
           <div className="max-h-64 overflow-y-auto">
@@ -83,9 +80,7 @@ export default function LanguageButton() {
                     draggable={false}
                   />
                 </div>
-                <span className="text-sm font-medium text-[#09403C]">
-                  {f.name}
-                </span>
+                <span className="text-sm font-medium text-[#09403C]">{f.name}</span>
               </button>
             ))}
           </div>
