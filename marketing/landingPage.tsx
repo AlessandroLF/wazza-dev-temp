@@ -14,6 +14,8 @@ import AffiliateHero from "./sections/affiliate-hero";
 import Testimonials from "./sections/testimonies";
 import Video from "./sections/video"
 import Founders from "./sections/founders";
+import FAQ from "./sections/faq";
+import Footer from "./sections/footer";
 
 export default function LandingPage() {
   const [heroReady, setHeroReady] = useState(false);
@@ -60,6 +62,8 @@ export default function LandingPage() {
       <Testimonials />
       <Video />
       <Founders />
+      <FAQ />
+      <Footer />
       
 
       {!preHidden && (

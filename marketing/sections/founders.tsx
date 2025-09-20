@@ -1,244 +1,294 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
+import { useEffect, useMemo, useRef } from "react";
 
 const BG = "#0B3F3B";
 const ACCENT = "#D9FF5B";
 
-// small helper for image fallbacks (srcPrimary -> srcFallback)
-function Img({ srcPrimary, srcFallback, className = "", alt = "" }: { srcPrimary: string; srcFallback: string; className?: string; alt?: string; }) {
-  const ref = useRef<HTMLImageElement | null>(null);
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      ref={ref}
-      src={srcPrimary}
-      alt={alt}
-      className={className}
-      onError={() => {
-        const el = ref.current;
-        if (el && el.src !== window.location.origin + srcFallback) el.src = srcFallback;
-      }}
-      draggable={false}
-    />
-  );
-}
+// assets
+const IMG_BACK = "/founders/image-107.png";
+const IMG_PHOTO = "/founders/image-105.png";
+const IMG_FRAME = "/founders/image-106.svg";
+const DIVIDER   = "/founders/Vector-11.svg";
+const BULLET    = "/founders/bullet.svg";
+
+// --- auto-scroll tuning ---
+const SCROLL_PX_PER_SEC = 140; // fast per your tweak
+const DWELL_MS = 2500;         // pause at top/bottom before bouncing
 
 export default function Founders() {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const webglHostRef = useRef<HTMLDivElement | null>(null);
+  const hoveringRef = useRef(false);
 
+  const prefersReduced = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    []
+  );
+
+  /** Continuous auto-scroll with hover pause + top/bottom dwell */
   useEffect(() => {
-    const wrap = wrapRef.current;
-    const canvas = canvasRef.current;
-    if (!wrap || !canvas) return;
+    const el = scrollRef.current;
+    if (!el) return;
 
-    // ---- three.js (orthographic: pixels == world units)
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-    const group = new THREE.Group();
-    scene.add(group);
-
-    const loader = new THREE.TextureLoader();
-
-    // Base size for the stacked card (scaled responsively below)
-    const BASE_W = 550;
-    const BASE_H = 310;
-
-    const makePlane = (w: number, h: number, tex: THREE.Texture) => {
-      tex.minFilter = THREE.LinearFilter;
-      tex.magFilter = THREE.LinearFilter;
-      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      const geo = new THREE.PlaneGeometry(w, h);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-      return new THREE.Mesh(geo, mat);
-    };
-
-    let planes: THREE.Mesh[] = [];
-    const sources = [
-      "/founders/image-107.png", // back plate
-      "/founders/image-105.png", // photo
-      "/founders/image-106.svg", // frame
-    ];
-
-    Promise.all(sources.map((p) => new Promise<THREE.Texture>((res, rej) => loader.load(p, res, undefined, rej))))
-      .then(([backTex, photoTex, frameTex]) => {
-        // make planes (slightly different sizes for depth)
-        const back = makePlane(BASE_W * 1.06, BASE_H * 1.06, backTex);
-        const photo = makePlane(BASE_W, BASE_H, photoTex);
-        const frame = makePlane(BASE_W + 12, BASE_H + 12, frameTex);
-
-        // initial offsets & rotations
-        back.position.set(-18, 12, -5);
-        back.rotation.z = THREE.MathUtils.degToRad(-5);
-
-        photo.position.set(0, 0, 0);
-        photo.rotation.z = THREE.MathUtils.degToRad(2);
-
-        frame.position.set(10, -6, 6);
-        frame.rotation.z = THREE.MathUtils.degToRad(4);
-
-        planes = [back, photo, frame];
-        planes.forEach((m) => group.add(m));
-
-        setSize();
-        animate(0);
-      })
-      .catch((e) => console.error("Founders: texture load error", e));
-
-    let W = 0, H = 0, scale = 1;
-
-    const setSize = () => {
-      const r = wrap.getBoundingClientRect();
-      W = r.width; H = r.height;
-      renderer.setSize(W, H, false);
-
-      camera.left = -W / 2;
-      camera.right = W / 2;
-      camera.top = H / 2;
-      camera.bottom = -H / 2;
-      camera.updateProjectionMatrix();
-
-      // scale the stack to fit comfortably in the column
-      const targetW = Math.min(W * 0.92, 700);
-      scale = targetW / (BASE_W + 40);
-      group.scale.set(scale, scale, 1);
-      group.position.set(0, H * 0.06, 0); // slight upward nudge
-    };
-
-    // gentle wobble animation
     let raf = 0;
-    const animate = (t: number) => {
-      raf = requestAnimationFrame(animate);
-      const time = (t || performance.now()) * 0.001;
+    let last = performance.now();
+    let dir: 1 | -1 = 1;    // 1 = down, -1 = up
+    let holdEnd = 0;        // timestamp until which we dwell
+    let edge: -1 | 0 | 1 = 0; // -1 top, 1 bottom, 0 none
 
-      if (planes.length) {
-        const [back, photo, frame] = planes;
+    const step = (t: number) => {
+      raf = requestAnimationFrame(step);
 
-        back.rotation.z = THREE.MathUtils.degToRad(-5) + Math.sin(time * 0.35) * 0.035;
-        back.position.y = 12 + Math.sin(time * 0.6) * 6;
+      if (prefersReduced) return;
+      if (el.scrollHeight <= el.clientHeight) return;
 
-        photo.rotation.z = THREE.MathUtils.degToRad(2) + Math.sin(time * 0.38 + 0.8) * 0.03;
-        photo.position.y = Math.sin(time * 0.55 + 0.4) * 7;
+      const dt = t - last;
+      last = t;
 
-        frame.rotation.z = THREE.MathUtils.degToRad(4) + Math.sin(time * 0.32 + 1.4) * 0.028;
-        frame.position.y = -6 + Math.sin(time * 0.62 + 1.2) * 5;
+      if (hoveringRef.current) return; // pause while hovering
+      if (t < holdEnd) return;         // dwell time active
+
+      const eps = 2;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - eps;
+      const atTop = el.scrollTop <= eps;
+
+      if (atBottom && edge !== 1) {
+        el.scrollTop = el.scrollHeight - el.clientHeight;
+        edge = 1;
+        holdEnd = t + DWELL_MS;
+        dir = -1;
+        return;
       }
+      if (atTop && edge !== -1) {
+        el.scrollTop = 0;
+        edge = -1;
+        holdEnd = t + DWELL_MS;
+        dir = 1;
+        return;
+      }
+      if (!atTop && !atBottom) edge = 0;
 
-      renderer.render(scene, camera);
+      const delta = Math.min((SCROLL_PX_PER_SEC * dt) / 1000, el.clientHeight * 0.02);
+      el.scrollTop += dir * delta;
     };
 
-    setSize();
-    window.addEventListener("resize", setSize);
+    if (el.scrollTop === 0) el.scrollTop = 1; // avoid edge-stuck
+    raf = requestAnimationFrame(step);
+
+    return () => cancelAnimationFrame(raf);
+  }, [prefersReduced]);
+
+  /** Subtle Three.js lime glow behind the right column (optional) */
+  useEffect(() => {
+    let mounted = true;
+    let renderer: any, scene: any, camera: any, mesh: any, raf = 0;
+
+    (async () => {
+      try {
+        const host = webglHostRef.current;
+        if (!host) return;
+        const THREE = await import("three");
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio ?? 1, 2));
+        renderer.setSize(host.clientWidth, host.clientHeight);
+        Object.assign(renderer.domElement.style, {
+          position: "absolute",
+          inset: "0",
+          pointerEvents: "none",
+        } as CSSStyleDeclaration);
+        host.appendChild(renderer.domElement);
+
+        scene = new THREE.Scene();
+        camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        const uniforms = { u_time: { value: 0 } };
+        const mat = new THREE.ShaderMaterial({
+          transparent: true,
+          depthWrite: false,
+          uniforms,
+          vertexShader: `void main(){gl_Position=vec4(position,1.0);}`,
+          fragmentShader: `
+            precision highp float;
+            uniform float u_time;
+            float blob(vec2 p, vec2 c, float r){ return smoothstep(r, r-0.25, length(p-c)); }
+            void main(){
+              vec2 uv = gl_FragCoord.xy / vec2(1024.0, 768.0);
+              uv = (uv*2.0 - 1.0);
+              uv.x *= 1.2;
+              float t = u_time*0.06;
+              vec2 c1 = vec2(sin(t*0.7)*0.3 - 0.2, cos(t*0.5)*0.25);
+              vec2 c2 = vec2(cos(t*0.6)*0.3 + 0.25, sin(t*0.8)*0.2);
+              float g = 0.0;
+              g += blob(uv, c1, 0.85);
+              g += blob(uv, c2, 0.85);
+              g = clamp(g, 0.0, 1.0);
+              vec3 lime = vec3(0.85, 1.0, 0.35);
+              vec3 col = lime * 0.18 * g;
+              gl_FragColor = vec4(col, g*0.18);
+            }
+          `,
+        });
+
+        const geo = new THREE.PlaneGeometry(2, 2);
+        mesh = new THREE.Mesh(geo, mat);
+        scene.add(mesh);
+
+        const onResize = () => renderer.setSize(host.clientWidth, host.clientHeight);
+        window.addEventListener("resize", onResize);
+        onResize();
+
+        const loop = (t: number) => {
+          raf = requestAnimationFrame(loop);
+          if (!mounted) return;
+          (mesh.material as any).uniforms.u_time.value = t / 1000;
+          renderer.render(scene, camera);
+        };
+        raf = requestAnimationFrame(loop);
+
+        return () => window.removeEventListener("resize", onResize);
+      } catch { /* three not available */ }
+    })();
+
     return () => {
-      window.removeEventListener("resize", setSize);
-      cancelAnimationFrame(raf);
-      renderer.dispose();
-      planes.forEach((m) => {
-        (m.material as THREE.Material).dispose?.();
-        (m.geometry as THREE.BufferGeometry).dispose?.();
-      });
+      mounted = false;
+      if (raf) cancelAnimationFrame(raf);
+      if (renderer) {
+        renderer.dispose?.();
+        renderer.domElement?.remove?.();
+      }
     };
   }, []);
 
   return (
-    <section id="founders" className="w-screen h-[100svh] overflow-hidden" style={{ backgroundColor: BG }}>
-      <div
-  className={[
-    "grid", "h-full", "w-full", "items-center",
-    "gap-x-10", "gap-y-8", "px-[4vw]", "py-[6vh]",
-    "md:grid-cols-[0.9fr,1.1fr]",
-  ].join(" ")}
->
-        {/* LEFT: wobbling stack */}
-        <div ref={wrapRef} className="relative h-[56vh] md:h-[72vh]">
-          <canvas ref={canvasRef} className="block h-full w-full" />
-        </div>
-
-        {/* RIGHT: content — wider column, scrollable, hidden scrollbar */}
-        <div className="relative max-h-[82vh] overflow-y-auto pr-2 scrollbar-hide">
-          <h3 className="font-display text-white text-[clamp(28px,3.6vw,54px)] leading-[1.02]">
+    <section className="relative w-screen overflow-hidden" style={{ backgroundColor: BG }}>
+      {/* Full-height row; md+ = 2 columns, mobile = single scroll pane */}
+      <div className="relative h-[100svh] min-h-0 px-[4vw] py-[6vh] flex flex-col md:flex-row md:items-stretch md:gap-12 overflow-hidden">
+        {/* LEFT (desktop/tablet only) — title + wobble stack */}
+        <div className="hidden md:flex md:basis-[44%] flex-col shrink-0">
+          <h3 className="mb-10 font-display font-extrabold leading-[0.98] text-white text-[clamp(40px,6vw,82px)]">
             <span className="block">Meet</span>
             <span className="block">Wazzap</span>
             <span className="block" style={{ color: ACCENT }}>Founders</span>
           </h3>
 
-          <p className="mt-6 text-white/90 text-[clamp(14px,1.1vw,16px)] leading-snug max-w-[60ch]">
-            <a href="https://wazzap.mx" target="_blank" className="underline">Wazzap.mx</a> is led by two Mexican partners,
-            with over 10 years of combined experience in software development and digital marketing.
-          </p>
-          <p className="mt-3 text-white/90 text-[clamp(14px,1.1vw,16px)] leading-snug max-w-[60ch]">
-            Nair and Miguel, who bring their extensive software background and expertise to the table.
-          </p>
-
-          <h4 className="mt-8 font-extrabold text-white text-[clamp(18px,1.6vw,22px)] leading-tight">
-            <span style={{ color: ACCENT }}>Nair:</span> Founder of the 🍕 PiSaaS Academy, empowering Latin
-            people to effectively use High-level.
-          </h4>
-
-          <ul className="mt-3 space-y-3">
-            <Bullet>Winner of the High-level Affillionaire Award and Tesla Electric Vehicle gifted by GHL.</Bullet>
-            <Bullet>
-              Known as the <a href="https://www.youtube.com/@gohighlevelwizard" target="_blank" className="underline">@gohighlevelwizard</a> on YouTube,
-              sharing valuable insights and interviews.
-            </Bullet>
-          </ul>
-
-          {/* Divider */}
-          <div className="mt-7">
-            <Img
-              srcPrimary="/founders/Vector-11.svg"
-              srcFallback="/founders/Vector-11.svg"
-              className="w-[320px] max-w-[70%] opacity-90"
-              alt=""
-            />
+          <div className="relative" style={{ width: "clamp(300px,38vw,580px)", height: "clamp(210px,28vw,380px)" }} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={IMG_BACK}  alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-1 -rotate-3 translate-x-[-2%] translate-y-[2%] drop-shadow-[0_16px_40px_rgba(0,0,0,0.35)]" draggable={false}/>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={IMG_PHOTO} alt="" className="absolute inset-0 m-auto h-[92%] w-auto select-none wobble-2 rotate-[1.5deg] drop-shadow-[0_20px_60px_rgba(0,0,0,0.35)]" draggable={false}/>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={IMG_FRAME} alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-3 rotate-[3deg] translate-x-[1%] -translate-y-[2%] drop-shadow-[0_14px_36px_rgba(0,0,0,0.30)]" draggable={false}/>
           </div>
+        </div>
 
-          <h4 className="mt-6 font-extrabold text-white text-[clamp(18px,1.6vw,22px)] leading-tight">
-            <span style={{ color: ACCENT }}>Miguel:</span> The Brain Behind Wazzap.mx, an Expert Developer
-            and Crypto Enthusiast
-          </h4>
+        {/* RIGHT — scroll pane (also hosts MOBILE title/stack at the top) */}
+        <div className="relative md:basis-[56%] min-h-0 h-full flex">
+          {/* subtle glow backdrop */}
+          <div ref={webglHostRef} className="pointer-events-none absolute inset-0 z-0" />
+          {/* scrollable content */}
+          <div
+            ref={scrollRef}
+            className="relative z-10 flex-1 overflow-y-auto overscroll-contain pr-4 scrollbar-hide"
+            onMouseEnter={() => (hoveringRef.current = true)}
+            onMouseLeave={() => (hoveringRef.current = false)}
+          >
+            {/* MOBILE-ONLY: left column content moved to top */}
+            <div className="md:hidden mb-10">
+              <h3 className="mb-6 font-display font-extrabold leading-[0.98] text-white text-[clamp(36px,8vw,64px)]">
+                <span className="block">Meet</span>
+                <span className="block">Wazzap</span>
+                <span className="block" style={{ color: ACCENT }}>Founders</span>
+              </h3>
+              <div className="relative mx-auto" style={{ width: "min(92%, 520px)", height: "min(60vw, 320px)" }} aria-hidden>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={IMG_BACK}  alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-1 -rotate-3 translate-x-[-2%] translate-y-[2%] drop-shadow-[0_16px_40px_rgba(0,0,0,0.35)]" draggable={false}/>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={IMG_PHOTO} alt="" className="absolute inset-0 m-auto h-[92%] w-auto select-none wobble-2 rotate-[1.5deg] drop-shadow-[0_20px_60px_rgba(0,0,0,0.35)]" draggable={false}/>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={IMG_FRAME} alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-3 rotate-[3deg] translate-x-[1%] -translate-y-[2%] drop-shadow-[0_14px_36px_rgba(0,0,0,0.30)]" draggable={false}/>
+              </div>
+            </div>
 
-          <ul className="mt-3 space-y-3">
-            <Bullet>
-              He is recognized as a super developer, known for his ability to create innovative solutions in record time.
-            </Bullet>
-            <Bullet>
-              As a crypto enthusiast, Miguel stays updated with the latest trends and technologies in the software world.
-            </Bullet>
-          </ul>
+            {/* main right content (unchanged) */}
+            <div className="space-y-20 md:space-y-24 lg:space-y-28">
+              {/* Intro */}
+              <div className="text-white/90 font-semibold text-[clamp(18px,1.6vw,24px)] leading-snug max-w-[74ch]">
+                <span className="block">
+                  <a href="https://wazzap.mx" target="_blank" className="underline">Wazzap.mx</a> is led by two Mexican partners, we
+                </span>
+                <span className="block">have over 10 years of combined experience in software</span>
+                <span className="block">development and digital marketing.</span>
 
-          <div className="h-10" />
+                <span className="block mt-5">Nair and Miguel, who bring their extensive software</span>
+                <span className="block">background and expertise to the table.</span>
+              </div>
+
+              {/* Nair */}
+              <div className="space-y-8">
+                <h4 className="font-extrabold text-white text-[clamp(24px,2.2vw,30px)] leading-tight max-w-[74ch]">
+                  <span className="block" style={{ color: ACCENT }}>Nair:</span>
+                  <span className="block">Founder of the 🍕 PiSaaS Academy,  empowering Latin</span>
+                  <span className="block">people to effectively use High-level.</span>
+                </h4>
+                <ul className="grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-x-16 md:gap-y-12 max-w-[76ch]">
+                  <Bullet>Winner of the High-level Affillionaire Award and Tesla Electric Vehicle gifted by GHL.</Bullet>
+                  <Bullet>Known as the <a href="https://www.youtube.com/@gohighlevelwizard" target="_blank" className="underline">@gohighlevelwizard</a> on YouTube, sharing valuable insights and interviews.</Bullet>
+                </ul>
+              </div>
+
+              {/* Divider */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={DIVIDER} alt="" className="w-full h-[14px] object-cover" style={{ objectPosition: "left center" }} draggable={false}/>
+
+              {/* Miguel */}
+              <div className="space-y-8">
+                <h4 className="font-extrabold text-white text-[clamp(24px,2.2vw,30px)] leading-tight max-w-[74ch]">
+                  <span className="block" style={{ color: ACCENT }}>Miguel:</span>
+                  <span className="block">The Brain Behind Wazzap.mx, an Expert Developer</span>
+                  <span className="block">and Crypto Enthusiast</span>
+                </h4>
+                <ul className="grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-x-16 md:gap-y-12 max-w-[76ch]">
+                  <Bullet>He is recognized as a super developer, known for his ability to create innovative solutions in record time.</Bullet>
+                  <Bullet>As a crypto enthusiast, Miguel stays updated with the latest trends and technologies in the software world.</Bullet>
+                </ul>
+              </div>
+
+              <div className="h-10" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Hide scrollbar utility */}
+      {/* utils */}
       <style jsx global>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+        @keyframes wobble1 { 0% { transform: translate(-2%,2%) rotate(-3deg); }
+                             50% { transform: translate(-2%,6%) rotate(-1deg); }
+                             100% { transform: translate(-2%,2%) rotate(-3deg);} }
+        @keyframes wobble2 { 0% { transform: rotate(1.5deg) translateY(0); }
+                             50% { transform: rotate(2.4deg) translateY(8px); }
+                             100% { transform: rotate(1.5deg) translateY(0);} }
+        @keyframes wobble3 { 0% { transform: translate(1%,-2%) rotate(3deg); }
+                             50% { transform: translate(1%,1%) rotate(4.1deg); }
+                             100% { transform: translate(1%,-2%) rotate(3deg);} }
+        .wobble-1 { animation: wobble1 8s ease-in-out infinite; }
+        .wobble-2 { animation: wobble2 8.8s ease-in-out infinite; }
+        .wobble-3 { animation: wobble3 9.4s ease-in-out infinite; }
       `}</style>
     </section>
   );
 }
 
-/* ---------- Bullet item using /founders/bullet.svg (fallback to Vector-11.svg) ---------- */
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex gap-3 text-white/90 text-[clamp(14px,1.05vw,16px)] leading-snug max-w-[62ch]">
-      <Img
-        srcPrimary="/founders/bullet.svg"
-        srcFallback="/founders/Vector-11.svg"
-        className="mt-1 h-[14px] w-[14px] shrink-0"
-        alt=""
-      />
-      <span>{children}</span>
+    <li className="flex items-start gap-3 text-white/90 text-[clamp(18px,1.4vw,22px)] leading-snug font-semibold">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={BULLET} alt="" className="mt-[4px] h-[15px] w-[15px] shrink-0" draggable={false} />
+      <span className="block">{children}</span>
     </li>
   );
 }
