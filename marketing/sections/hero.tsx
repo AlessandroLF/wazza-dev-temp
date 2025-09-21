@@ -1,37 +1,51 @@
 "use client";
 
-import Image from "next/image";
+import { useEffect, useState } from "react";
 import Header from "./header";
 
-export default function Hero() {
-  const HERO_W = 1920;
-  const HERO_H = 1200;
+type Props = { onLoaded?: () => void };
+
+export default function Hero({ onLoaded }: Props) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  const videoSrc = isMobile ? "/hero/video-mobile.mp4" : "/hero/video-desktop.mp4";
 
   return (
     <section className="relative w-full">
-      {/* Header */}
+      {/* Header (as-is) */}
       <div className="absolute left-0 right-0 top-4 z-[30] px-4 md:px-6">
         <Header />
       </div>
 
-      <div className="relative">
-        <Image
-          src="/hero/landing-desktop.png" // swap to blank hero when ready
-          alt="Wazzap hero"
-          priority
-          width={HERO_W}
-          height={HERO_H}
-          sizes="100vw"
-          className="block h-auto w-screen select-none"
-          draggable={false}
+      {/* Stage */}
+      <div className="relative w-screen h-[min(100svh,900px)]">
+        {/* Background video */}
+        <video
+          key={videoSrc}
+          className="absolute inset-0 h-full w-full object-cover"
+          src={videoSrc}
+          autoPlay
+          muted
+          playsInline
+          loop
+          poster="/hero/landing-desktop.png"
+          onLoadedData={() => onLoaded?.()}
         />
 
-        {/* left-to-right shade for legibility on text area */}
+        {/* Left-to-right shade for text legibility */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/35 via-black/15 to-transparent" />
 
-        {/* TEXTS */}
+        {/* TEXTS (unchanged) */}
         <div className="absolute z-20 left-0 right-0 px-6 sm:px-10 md:px-12 lg:px-16 top-[14vh]">
-          {/* Headline – minimal line spacing + a touch of top padding */}
+          {/* Headline */}
           <div className="max-w-[820px] pt-1">
             <h1
               className="
@@ -49,7 +63,7 @@ export default function Hero() {
             </h1>
           </div>
 
-          {/* Secondary copy – first line ends at “and”, pushed further down */}
+          {/* Secondary copy */}
           <div className="mt-[14vh] sm:mt-[15vh] md:mt-[23vh] max-w-[640px]">
             <p
               className="
@@ -64,7 +78,7 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Integrations — WAY bigger */}
+        {/* Integrations (unchanged) */}
         <div className="absolute bottom-10 left-1/2 z-20 -translate-x-1/2 w-full px-6">
           <div className="mx-auto">
             <div className="flex flex-col items-center gap-4">
@@ -72,42 +86,12 @@ export default function Hero() {
                 We integrate with
               </p>
               <div className="w-full flex flex-wrap items-center justify-evenly gap-x-14 gap-y-8 opacity-95">
-            <img
-              src="/integrations/highlevel.svg"
-              alt="HighLevel"
-              className="h-[38px] sm:h-[46px] md:h-[56px] w-auto"
-              draggable={false}
-            />
-            <img
-              src="/integrations/chatwoot.svg"
-              alt="chatwoot"
-              className="h-[38px] sm:h-[46px] md:h-[56px] w-auto"
-              draggable={false}
-            />
-            <img
-              src="/integrations/n8n.svg"
-              alt="n8n"
-              className="h-[34px] sm:h-[42px] md:h-[50px] w-auto"
-              draggable={false}
-            />
-            <img
-              src="/integrations/elevenlabs.svg"
-              alt="ElevenLabs"
-              className="h-[38px] sm:h-[46px] md:h-[56px] w-auto"
-              draggable={false}
-            />
-            <img
-              src="/integrations/openai.svg"
-              alt="OpenAI"
-              className="h-[38px] sm:h-[46px] md:h-[56px] w-auto"
-              draggable={false}
-            />
-            <img
-              src="/integrations/google-calendar.svg"
-              alt="Google Calendar"
-              className="h-[38px] sm:h-[46px] md:h-[56px] w-auto"
-              draggable={false}
-            />
+                <img src="/integrations/highlevel.svg" alt="HighLevel" className="h-[38px] sm:h-[46px] md:h-[56px] w-auto" draggable={false}/>
+                <img src="/integrations/chatwoot.svg"  alt="chatwoot"   className="h-[38px] sm:h-[46px] md:h-[56px] w-auto" draggable={false}/>
+                <img src="/integrations/n8n.svg"       alt="n8n"        className="h-[34px] sm:h-[42px] md:h-[50px] w-auto"  draggable={false}/>
+                <img src="/integrations/elevenlabs.svg" alt="ElevenLabs" className="h-[38px] sm:h-[46px] md:h-[56px] w-auto" draggable={false}/>
+                <img src="/integrations/openai.svg"     alt="OpenAI"     className="h-[38px] sm:h-[46px] md:h-[56px] w-auto" draggable={false}/>
+                <img src="/integrations/google-calendar.svg" alt="Google Calendar" className="h-[38px] sm:h-[46px] md:h-[56px] w-auto" draggable={false}/>
               </div>
             </div>
           </div>

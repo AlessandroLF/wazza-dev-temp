@@ -53,6 +53,11 @@ export default function LandingPage() {
   return (
      <main className="relative min-h-screen w-full overflow-x-hidden bg-[#EBF6F6] ">
       <Hero onLoaded={handleHeroLoaded} />
+      <StickyCTA
+        className="max-w-[720px] mx-auto"   // <- your max width
+        buttonClass="w-full"                // <- button fills that width
+        offsetBottom={28}                   // <- a touch more space for the shadow
+      />
       <Proof />
       <PainPoints />
       <Features />
@@ -75,7 +80,7 @@ export default function LandingPage() {
       )}
 
       {revealMounted && <TealReveal start={revealStart} />}
-      <StickyCTA />
+      
       <CommunityPopup /> 
     </main>
   );

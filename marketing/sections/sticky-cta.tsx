@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import FormModal from "./form-modal";
 import PillButton from "./pill-button";
 
-type Props = { forceShow?: boolean };
+type Props = { forceShow?: boolean; showInlineMobile?: boolean };
 
-export default function StickyCTA({ forceShow }: Props) {
+export default function StickyCTA({ forceShow, showInlineMobile = true }: Props) {
   const [show, setShow] = useState(false);
   const [open, setOpen] = useState(false);
   const [docked, setDocked] = useState(false);
@@ -16,7 +16,6 @@ export default function StickyCTA({ forceShow }: Props) {
     const onDone = () => setShow(true);
     window.addEventListener("wazzap:preloader:done", onDone);
 
-    // watch body class for docking
     const updateDocked = () => setDocked(document.body.classList.contains("cta-docked"));
     updateDocked();
     const mo = new MutationObserver(updateDocked);
@@ -31,14 +30,24 @@ export default function StickyCTA({ forceShow }: Props) {
 
   return (
     <>
+      {/* Sticky desktop/tablet only */}
       <div
         className={[
-          "fixed inset-x-0 bottom-[max(env(safe-area-inset-bottom),16px)] z-[55] flex justify-center transition-all duration-300",
-          visible ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-4 pointer-events-none",
+          "hidden md:fixed md:inset-x-0 md:bottom-[max(env(safe-area-inset-bottom),16px)] md:z-[55] md:flex md:justify-center md:transition-all md:duration-300",
+          visible ? "md:opacity-100 md:translate-y-0 md:pointer-events-auto" : "md:opacity-0 md:translate-y-4 md:pointer-events-none",
         ].join(" ")}
       >
         <PillButton onClick={() => setOpen(true)}>Get 5 Day Free Trial</PillButton>
       </div>
+
+      {/* Inline mobile pill (appears where the component is mounted) */}
+      {showInlineMobile && (
+        <div className="md:hidden px-[4vw] py-5 max-w-[720px] mx-auto md:overflow-visible">
+          <PillButton className="w-full justify-between" onClick={() => setOpen(true)}>
+            Get 5 Day Free Trial
+          </PillButton>
+        </div>
+      )}
 
       <FormModal open={open} onClose={() => setOpen(false)} />
     </>

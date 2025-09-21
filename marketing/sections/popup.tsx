@@ -1,28 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function CommunityPopup() {
   const [open, setOpen] = useState(false);
+  const shownRef = useRef(false);
+
+  // Show once per session
+  const markShown = () => sessionStorage.setItem("wz:exit-intent-shown", "1");
+  const alreadyShown = () => sessionStorage.getItem("wz:exit-intent-shown") === "1";
 
   useEffect(() => {
-    const t = setTimeout(() => setOpen(true), 2000);
-    return () => clearTimeout(t);
+    if (alreadyShown()) return;
+
+    const show = () => {
+      if (shownRef.current) return;
+      shownRef.current = true;
+      markShown();
+      setOpen(true);
+    };
+
+    // Desktop: mouse exits top edge (toward URL bar/close button)
+    const onMouseOut = (e: MouseEvent) => {
+      if (e.relatedTarget === null && e.clientY <= 0) show();
+    };
+
+    // Mobile heuristic: fast upward scroll near top
+    let lastY = window.scrollY;
+    let lastT = performance.now();
+    const onScroll = () => {
+      const now = performance.now();
+      const dy = lastY - window.scrollY; // positive when scrolling up
+      const dt = now - lastT;
+      lastY = window.scrollY;
+      lastT = now;
+      if (window.innerWidth <= 820 && window.scrollY < 80 && dy > 100 && dt < 220) {
+        show();
+      }
+    };
+
+    document.addEventListener("mouseout", onMouseOut);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener("mouseout", onMouseOut);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
+  // Lock scroll while open
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => (document.body.style.overflow = prev);
   }, [open]);
 
   if (!open) return null;
 
   const close = () => setOpen(false);
   const onPrimary = () => {
+    // TODO: wire up deep-link / invite
     alert("TODO: connect to WhatsApp community");
     setOpen(false);
   };
@@ -30,10 +68,7 @@ export default function CommunityPopup() {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 z-0 bg-black/55 backdrop-blur-[2px]"
-        onClick={close}
-      />
+      <div className="absolute inset-0 z-0 bg-black/55 backdrop-blur-[2px]" onClick={close} />
 
       {/* Dialog wrapper */}
       <div
@@ -53,7 +88,7 @@ export default function CommunityPopup() {
           draggable={false}
         />
 
-        {/* Close button — put it ABOVE everything */}
+        {/* Close button */}
         <button
           onClick={close}
           aria-label="Close"
@@ -66,7 +101,6 @@ export default function CommunityPopup() {
 
         {/* Overlay content layer (text + CTA) */}
         <div className="absolute inset-0 z-10 grid grid-rows-[1fr_auto] p-[clamp(16px,3vw,32px)]">
-          {/* Text block */}
           <div className="pointer-events-none">
             <h2
               id="popup-title"
@@ -85,7 +119,6 @@ export default function CommunityPopup() {
             </p>
           </div>
 
-          {/* CTA (explicitly clickable) */}
           <div className="self-end pointer-events-auto">
             <button
               onClick={onPrimary}
