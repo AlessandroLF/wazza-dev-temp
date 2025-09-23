@@ -17,7 +17,6 @@ export default function Painpoints() {
   const [svgHTML, setSvgHTML] = useState<string | null>(null);
   const [svgWH, setSvgWH] = useState<{ w: number; h: number } | null>(null);
 
-  // Inline the SVG and force outline-only + controllable sizing
   useEffect(() => {
     let aborted = false;
     (async () => {
@@ -33,13 +32,11 @@ export default function Painpoints() {
         const wh = getWHFromViewBox(svg);
         if (wh) setSvgWH(wh);
 
-        // let CSS drive size
         svg.removeAttribute("width");
         svg.removeAttribute("height");
         svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
         svg.setAttribute("style", "height:100vh;width:auto;display:block;");
 
-        // outline-only + lower opacity (0.15)
         const style = doc.createElementNS("http://www.w3.org/2000/svg", "style");
         style.textContent = `
           svg * {
@@ -62,7 +59,6 @@ export default function Painpoints() {
     };
   }, []);
 
-  // total width so the whole outline fits at 100vh tall
   const panelWidthPx = useMemo(() => {
     if (!svgWH) return 0;
     const vh = typeof window !== "undefined" ? window.innerHeight : 0;
@@ -70,7 +66,6 @@ export default function Painpoints() {
     return (svgWH.w / svgWH.h) * vh; // W = (svgW/svgH) * 100vh
   }, [svgWH]);
 
-  // recompute on resize
   useEffect(() => {
     const onR = () => setSvgWH((v) => (v ? { ...v } : v));
     window.addEventListener("resize", onR);
@@ -88,7 +83,6 @@ export default function Painpoints() {
     { primary: "/painpoints/5.svg", fallback: "/5.svg", title: ["Works only with", "approved business", "numbers"] },
   ];
 
-  // Steps rail data
   const STEPS: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> = [
     { iconPrimary: "/steps/1.svg", iconFallback: "/steps/1.svg", title: "Scan QR Code", copy: "Easily link any WhatsApp number in seconds — no approval required." },
     { iconPrimary: "/steps/2.svg", iconFallback: "/steps/2.svg", title: "Connect Your Automation Tool", copy: "Integrate with your favorite CRM instantly, without coding or complex setups." },
@@ -96,23 +90,24 @@ export default function Painpoints() {
   ];
 
   // --- controls ---
-  // Nudge line to match union (positive = move line slightly down)
   const LINE_NUDGE_PX = -6;
-  // Drop the icons + labels by this many viewport-height units
   const SHIFT_VH = 5;
-  // Vertically shrink the rope line (1 = no shrink)
   const LINE_SCALE_Y = 0.40;
 
   return (
-    <>
     <section
       id="painpoints"
-      className="relative h-screen w-screen overflow-hidden bg-[#0B3F3B]"
+      // let the whole “canvas” scroll both ways; keep it full-height at the top
+      className="relative w-screen h-[100vh] overflow-x-auto overflow-y-auto bg-[#0B3F3B]"
       aria-label="WhatsApp API pain points"
     >
-      {/* Horizontally scrollable area fills the viewport */}
-      <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
-        <div className="relative h-full" style={{ width: widthStyle }}>
+      {/* L-shaped canvas: row1 = 100vh (horizontal scene), row2 = auto (vertical steps on the far right) */}
+      <div
+        className="relative grid"
+        style={{ width: widthStyle, gridTemplateRows: "100vh auto" }}
+      >
+        {/* ── Row 1: horizontal scene (unchanged visuals) ───────────────── */}
+        <div className="relative h-[100vh]">
           {/* Background outline (inline svg), centered; small scale = side padding */}
           {svgHTML && (
             <div
@@ -156,7 +151,6 @@ export default function Painpoints() {
               left: "64%",
               width: "30%",
               height: "auto",
-              // no translate here
               filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.25))",
             }}
             draggable={false}
@@ -200,6 +194,7 @@ export default function Painpoints() {
             </div>
           </div>
 
+          {/* Rightmost headline */}
           <div className="absolute right-[4vw] top-[9vh] z-20">
             <h3 className="font-display font-extrabold text-white leading-[0.9] tracking-[-0.01em] text-[clamp(20px,2.6vw,38px)] text-right">
               <span className="block">Connect any</span>
@@ -208,40 +203,157 @@ export default function Painpoints() {
             </h3>
           </div>
         </div>
-      </div>
-      <StepsPanel steps={STEPS} />
-    </section>
 
-    </>
-  );
-}
-
-/* ---------- steps panel (new component) ---------- */
-function StepsPanel({ steps }: { steps: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> }) {
-  return (
-    <section id="steps" className="relative w-screen min-h-[80vh] bg-[#0B3F3B]">
-      <div className="mx-auto max-w-[1200px] px-[4vw] py-[10vh]">
-        <div className="ml-auto w-[min(40rem,34vw)]">
-          <div className="flex flex-col gap-8">
-            {steps.map((s, i) => (
-              <div key={i} className="flex items-start gap-4">
-                <IconImg
-                  srcPrimary={s.iconPrimary}
-                  srcFallback={s.iconFallback}
-                  className="h-[clamp(40px,3.2vw,56px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
-                />
-                <div className="text-white">
-                  <h4 className="text-[clamp(18px,2vw,28px)] font-extrabold leading-tight">{s.title}</h4>
-                  <p className="mt-1 text-white/90 text-[clamp(12px,1.1vw,14px)] leading-snug">{s.copy}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* │ Row 2: vertical steps column, pinned to the far right (┐) ───── */}
+        <div className="relative justify-self-end pr-0 w-screen">
+          <StepsPanel/>
         </div>
       </div>
     </section>
   );
 }
+
+function StepsPanel() {
+  // ---- controls (safe to tweak) ----
+  const LINE_NUDGE_PX = -6;          // tiny vertical nudge for Unio.svg (down = +)
+  const SHIFT_VH = 5;                // base push for markers (vh)
+  const PLUS_SIZE_PX = 34;           // /steps/plus.svg size
+
+  // panel/rope sizing
+  const PANEL_VH = 180;              // panel height
+  const ROPE_HEIGHT_PCT = 70;        // rope = % of panel height
+
+  // horizontal alignment
+  const ROPE_X_OFFSET_PX = -36;      // move rope a bit LEFT (negative = left)
+  const MARKER_X_PX = [ +18, -16, -4 ]; // per-marker X nudges (top→bottom)
+
+  // vertical positions
+  const STEP_Y = [18, 43, 75];       // marker/text anchors (vh from top)
+  const TEXT_OFFSET_VH = [0, 0, 10]; // extra downshift for each text block
+
+  const STEPS: Array<{
+    title: string;
+    copy: string;
+    icon: string;
+    side: "left" | "right" | "center";
+  }> = [
+    {
+      title: "Connect Your Automation Tool",
+      copy:
+        "Integrate with your favorite CRM instantly, without coding or complex setups.",
+      icon: "/steps/2.svg",
+      side: "right",
+    },
+    {
+      title: "Scan QR Code",
+      copy:
+        "Easily link any WhatsApp number in seconds — no approval required.",
+      icon: "/steps/1.svg",
+      side: "left",
+    },
+    {
+      title: "Start Sending Messages",
+      copy:
+        "Send unlimited messages, template buttons, and voice replies — all from one dashboard.",
+      icon: "/steps/3.svg",
+      side: "center",
+    },
+  ];
+
+  return (
+    <section
+      id="steps"
+      className="relative w-full bg-[#0B3F3B] overflow-hidden"
+      style={{ minHeight: `${PANEL_VH}vh` }}
+    >
+      {/* IMPORTANT: no ml-auto, no right padding; parent grid cell already pins this to the right */}
+      <div className="relative w-full px-0" style={{ height: `${PANEL_VH}vh` }}>
+        {/* Rope (Unio.svg) — centered, shifted slightly left, 70% tall */}
+        <img
+          src="/steps/Unio.svg"
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute left-1/2 select-none"
+          style={{
+            top: `${LINE_NUDGE_PX}px`,
+            height: `${ROPE_HEIGHT_PCT}%`,
+            width: "auto",
+            transform: `translateX(calc(-50% + ${ROPE_X_OFFSET_PX}px))`,
+            filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.35))",
+          }}
+        />
+
+        {/* Plus markers — along the rope; top two nudged to match the curve */}
+        {STEP_Y.map((y, i) => (
+          <img
+            key={`marker-${i}`}
+            src="/steps/plus.svg"
+            alt=""
+            draggable={false}
+            className="absolute"
+            style={{
+              top: `calc(${y + SHIFT_VH}vh)`,
+              left: "50%",
+              transform: `translateX(calc(-50% + ${ROPE_X_OFFSET_PX + (MARKER_X_PX[i] ?? 0)}px))`,
+              width: PLUS_SIZE_PX,
+              height: PLUS_SIZE_PX,
+              filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.35))",
+            }}
+          />
+        ))}
+
+        {/* Alternating step text blocks (bottom pulled down) */}
+        {STEPS.map((s, i) => {
+          const y = STEP_Y[i] + SHIFT_VH + (TEXT_OFFSET_VH[i] ?? 0);
+          const baseText =
+            "text-white leading-tight tracking-[-0.01em] select-none";
+          const h4Cls =
+            "font-display font-extrabold text-[clamp(18px,2.4vw,28px)]";
+          const pCls = "mt-2 text-white/90 text-[clamp(12px,1.1vw,14px)]";
+
+          const sidePosition =
+            s.side === "left"
+              ? "left-[8vw] text-left"
+              : s.side === "right"
+              ? "right-[8vw] text-right"
+              : "left-1/2 -translate-x-1/2 text-center";
+
+          return (
+            <div
+              key={`step-${i}`}
+              className={`absolute z-20 ${sidePosition}`}
+              style={{ top: `calc(${y}vh)` }}
+            >
+              <div className="mb-3 inline-flex items-center gap-3">
+                <img
+                  src={s.icon}
+                  alt=""
+                  className="h-[clamp(36px,3vw,56px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
+                  draggable={false}
+                />
+                <span className="sr-only">{s.title}</span>
+              </div>
+
+              <h4 className={`${baseText} ${h4Cls}`}>{s.title}</h4>
+              <p className={`${baseText} ${pCls}`}>{s.copy}</p>
+            </div>
+          );
+        })}
+
+        {/* Bottom jagged background */}
+        <img
+          src="/steps/background-bg.svg"
+          alt=""
+          className="pointer-events-none absolute bottom-0 left-0 w-full select-none"
+          draggable={false}
+        />
+      </div>
+    </section>
+  );
+}
+
+
+
 
 /* ---------- small helper so icons show even if folder differs ---------- */
 function IconImg({

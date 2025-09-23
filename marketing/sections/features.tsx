@@ -1,53 +1,29 @@
 "use client";
 
-import { useMemo, useEffect, useRef, useState } from "react";
-import * as THREE from "three";
+import { useEffect, useMemo, useRef, useState } from "react";
+import PhoneThree from "@/marketing/components/phoneThree";
 
-/**
- * Wazzap Key Features (drop-in)
- * - Three.js phone with Lottie (from /phone-440x600.json only)
- * - Floating + tilting animations (roll/pitch/yaw)
- * - Same layout and cards you already had
- */
-
-// ---------- Controls ----------
 const BG_COLOR = "#E7F4F3";
 const MAX_W = 1200;
 const SECTION_Y_PAD_VH = 10;
 
-// Phone / stage
 const PHONE_WIDTH_CLAMP = "clamp(220px,24vw,460px)";
 const PHONE_DROP_SHADOW = "0 20px 60px rgba(0,0,0,0.25)";
-const PHONE_ASPECT_W = 440;
-const PHONE_ASPECT_H = 600;
 
-// Animation (radians / px)
-const PHONE_BASE_ROLL_DEG = -2; // almost straight baseline
-const TILT_ROLL_AMPL = THREE.MathUtils.degToRad(7); // ±7° roll (Z)
-const TILT_PITCH_AMPL = THREE.MathUtils.degToRad(4); // ±4° pitch (X)
-const TILT_YAW_AMPL = THREE.MathUtils.degToRad(5); // ±5° yaw (Y)
-const TILT_SPEED = 0.85; // roll/pitch speed
-const YAW_SPEED = 0.65; // yaw speed
-const FLOAT_AMPL_PX = 10; // bob amplitude (px in CSS space)
-const FLOAT_SPEED = 0.6;
-
-// Columns
 const COL_GAP_CLAMP = "clamp(24px,3vw,48px)";
-const CARD_BG = "#FFFFFF";
-const CARD_RADIUS = 16;
-const CARD_SHADOW = "0 6px 24px rgba(0,0,0,0.08)";
-const CARD_BORDER = "1px solid rgba(0,0,0,0.06)";
-const CARD_PAD_CLAMP = "clamp(14px,1.2vw,18px)";
 const CARD_GAP_REM = 1.0;
 
-// Stagger
-const LEFT_Y_OFFSETS_REM = [0, 1.25, 2.5];
-const RIGHT_Y_OFFSETS_REM = [1.25, 0, 2.5];
+// How fast the column scrolls (px/sec)
+const SPEED_PX_PER_S = 28;
 
-// Headline
-const H1_SIZE = "clamp(24px,3.2vw,42px)";
+const MOBILE_PHONE_WIDTH_VW = 58;   // was ~92 — shrink on small screens
+const MOBILE_PHONE_MAX_PX   = 420;  // hard cap
+const MOBILE_PHONE_TOP_VH   = 16;   // push it down a touch
+const MOBILE_PHONE_ROT_DEG  = -2;   // slightly straighter
+const MOBILE_PHONE_OPACITY  = 0.9;  // a hair softer behind text
+const MOBILE_PHONE_X_SHIFT_VW = 29;
 
-// Data
+/* ===================== Data ===================== */
 const FEATURES: Array<{ id: string; text: string }> = [
   { id: "01", text: "Turn your WhatsApp into an AI Chatbot" },
   { id: "02", text: "Send Voice Notes with cloned voices" },
@@ -57,6 +33,8 @@ const FEATURES: Array<{ id: string; text: string }> = [
   { id: "06", text: "Connect Multiple Numbers and assign to staff" },
 ];
 
+/* ===================================================== */
+
 export default function Features() {
   const left = useMemo(() => FEATURES.slice(0, 3), []);
   const right = useMemo(() => FEATURES.slice(3), []);
@@ -64,54 +42,44 @@ export default function Features() {
   return (
     <section
       id="features"
-      className="w-screen"
+      className="w-screen relative"
       aria-label="Wazzap key features"
       style={{ backgroundColor: BG_COLOR, padding: `${SECTION_Y_PAD_VH}vh 0` }}
     >
-      <div className="mx-auto px-[4vw]" style={{ maxWidth: MAX_W }}>
-        <h2
-          className="font-display font-extrabold text-[#103B36] tracking-[-0.01em]"
-          style={{ fontSize: H1_SIZE }}
-        >
+      {/* Mobile-only phone behind the text (prevents cropping) */}
+      <MobilePhoneBackdrop />
+
+      <div className="relative z-10 mx-auto px-[4vw]" style={{ maxWidth: MAX_W }}>
+        <h2 className="font-display font-extrabold text-[#103B36] tracking-[-0.01em] text-[clamp(24px,3.2vw,42px)]">
           Wazzap Key Features
         </h2>
 
-        {/* 3 columns: left tips, phone, right tips */}
         <div
           className="relative mt-6 md:mt-8 flex flex-wrap md:flex-nowrap items-start justify-center"
           style={{ gap: COL_GAP_CLAMP }}
         >
           {/* Left column */}
-          <div
-            className="flex shrink-0 grow-0 basis-full md:basis-[30%] md:max-w-[30%] flex-col"
-            style={{ gap: `${CARD_GAP_REM}rem` }}
-          >
-            {left.map((f, i) => (
-              <FeatureCard key={f.id} id={f.id} text={f.text} mtRem={LEFT_Y_OFFSETS_REM[i] || 0} />
-            ))}
+          <div className="shrink-0 grow-0 basis-full md:basis-[30%] md:max-w-[30%]">
+            <ColumnContinuous items={left} phase={0} />
           </div>
 
-          {/* Phone visual (Three.js) */}
-          <div className="shrink-0 grow-0 basis-full md:basis-[40%] md:max-w-[40%] flex flex-col items-center">
+          {/* Center phone — only on md+ so mobile uses backdrop */}
+          <div className="hidden md:flex shrink-0 grow-0 basis-full md:basis-[40%] md:max-w-[40%] flex-col items-center">
             <div
               className="relative rounded-[28px] overflow-visible"
               style={{
                 width: PHONE_WIDTH_CLAMP,
                 filter: `drop-shadow(${PHONE_DROP_SHADOW})`,
+                aspectRatio: "440 / 600",
               }}
             >
-              <PhoneThree baseRollDeg={PHONE_BASE_ROLL_DEG} />
+              <PhoneThree style={{ width: "100%", height: "100%" }} />
             </div>
           </div>
 
-          {/* Right column */}
-          <div
-            className="flex shrink-0 grow-0 basis-full md:basis-[30%] md:max-w-[30%] flex-col"
-            style={{ gap: `${CARD_GAP_REM}rem` }}
-          >
-            {right.map((f, i) => (
-              <FeatureCard key={f.id} id={f.id} text={f.text} mtRem={RIGHT_Y_OFFSETS_REM[i] || 0} />
-            ))}
+          {/* Right column (phase-shift for alternating bands) */}
+          <div className="shrink-0 grow-0 basis-full md:basis-[30%] md:max-w-[30%]">
+            <ColumnContinuous items={right} phase={0.5} />
           </div>
         </div>
       </div>
@@ -119,219 +87,164 @@ export default function Features() {
   );
 }
 
-// ---------- Small presentational card ----------
-function FeatureCard({ id, text, mtRem = 0 }: { id: string; text: string; mtRem?: number }) {
+function MobilePhoneBackdrop() {
   return (
-    <div className="relative" style={{ marginTop: `${mtRem}rem` }}>
+    <div
+      className="md:hidden pointer-events-none absolute inset-x-0 z-0 flex justify-center"
+      style={{ top: `${MOBILE_PHONE_TOP_VH}vh` }}
+    >
       <div
-        className="rounded-2xl"
+        className="aspect-[440/600]"
         style={{
-          background: CARD_BG,
-          borderRadius: CARD_RADIUS,
-          boxShadow: CARD_SHADOW,
-          border: CARD_BORDER,
-          padding: CARD_PAD_CLAMP,
+          width: `min(${MOBILE_PHONE_WIDTH_VW}vw, ${MOBILE_PHONE_MAX_PX}px)`,
+          // translateX(-Xvw) shifts it left while keeping everything else the same
+          transform: `translate3d(-${MOBILE_PHONE_X_SHIFT_VW}vw,0,0) rotate(${MOBILE_PHONE_ROT_DEG}deg)`,
+          filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.25))",
+          opacity: MOBILE_PHONE_OPACITY,
         }}
       >
-        <div className="text-[clamp(12px,1.1vw,14px)] text-[#9EB0AE] font-extrabold">{id}</div>
-        <div className="mt-1 text-[clamp(16px,1.45vw,19px)] font-extrabold text-[#103B36] leading-[1.15]">
-          {text}
-        </div>
+        <PhoneThree style={{ width: "100%", height: "100%" }} />
       </div>
     </div>
   );
 }
 
-// ---------- Three.js phone with Lottie texture ----------
-function PhoneThree({ baseRollDeg }: { baseRollDeg: number }) {
-  const mountRef = useRef<HTMLDivElement | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const texRef = useRef<THREE.CanvasTexture | null>(null);
-  const groupRef = useRef<THREE.Group | null>(null);
-  const lottieAnimRef = useRef<any>(null);
-  const hiddenDivRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
+
+/* =============== Continuous Scrolling Columns =============== */
+function ColumnContinuous({
+  items,
+  phase = 0, // 0..1 fraction of a cycle (offsets left vs right)
+}: {
+  items: Array<{ id: string; text: string }>;
+  phase?: number;
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const firstCardRef = useRef<HTMLDivElement>(null);
+
+  const [cardH, setCardH] = useState(0);
+  const [gapPx, setGapPx] = useState(0);
+
+  const offsetPxRef = useRef(0);
+  const cyclePxRef = useRef(1);
+
+  const VISIBLE_BLOCKS = 3;
+
+  // measure and compute
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
+    const track = trackRef.current;
+    const first = firstCardRef.current;
+    const viewport = viewportRef.current;
+    if (!track || !first || !viewport) return;
 
-    const prefersReduced =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const compute = () => {
+      const styles = getComputedStyle(track);
+      const gap = parseFloat(styles.rowGap || "0");
+      setGapPx(gap);
 
-    // Container with fixed aspect ratio (matches the JSON)
-    mount.style.position = "relative";
-    mount.style.width = "100%";
-    mount.style.aspectRatio = `${PHONE_ASPECT_W} / ${PHONE_ASPECT_H}`;
+      const h = first.offsetHeight;
+      setCardH(h);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    rendererRef.current = renderer;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearAlpha(0);
-    renderer.domElement.style.position = "absolute";
-    renderer.domElement.style.inset = "0";
-    renderer.domElement.style.width = "100%";
-    renderer.domElement.style.height = "100%";
-    mount.appendChild(renderer.domElement);
+      // stride = card + spacer + row-gap
+      const stride = h + h + gap;
+      const cycle = items.length * stride;
+      cyclePxRef.current = cycle;
 
-    // Scene & camera
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
-    camera.position.z = 2.2;
+      // initial offset from phase
+      offsetPxRef.current = (phase % 1) * cycle;
 
-    // Plane inside a group so we animate the group
-    const group = new THREE.Group();
-    groupRef.current = group;
-    scene.add(group);
-
-    const planeGeo = new THREE.PlaneGeometry(1, PHONE_ASPECT_H / PHONE_ASPECT_W);
-    const mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.01 });
-    const plane = new THREE.Mesh(planeGeo, mat);
-    group.add(plane);
-
-    // Fit content
-    const fit = () => {
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      if (!w || !h) return;
-
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-
-      const vFov = THREE.MathUtils.degToRad(camera.fov);
-      const visH = 2 * Math.tan(vFov / 2) * camera.position.z;
-      const visW = visH * camera.aspect;
-      const s = Math.min(visW * 0.75, visH * 0.75);
-      plane.scale.set(s, s, 1);
+      // exactly 3 blocks visible
+      viewport.style.height = `${VISIBLE_BLOCKS * stride}px`;
     };
-    fit();
-    const onR = () => fit();
-    window.addEventListener("resize", onR);
 
-    // Animate
-    let t0 = performance.now();
-    const animate = () => {
-      rafRef.current = requestAnimationFrame(animate);
-      const t = (performance.now() - t0) / 1000;
+    const ro = new ResizeObserver(() => compute());
+    ro.observe(track);
+    ro.observe(first);
 
-      if (!prefersReduced && group) {
-        // CSS px to world units (for vertical bobbing)
-        const vFov = THREE.MathUtils.degToRad(camera.fov);
-        const visH = 2 * Math.tan(vFov / 2) * camera.position.z;
-        const px2world = visH / (mount.clientHeight || 1);
-
-        group.position.y = Math.sin(t * FLOAT_SPEED) * FLOAT_AMPL_PX * px2world;
-
-        const baseRoll = THREE.MathUtils.degToRad(baseRollDeg);
-        group.rotation.z = baseRoll + Math.sin(t * TILT_SPEED) * TILT_ROLL_AMPL; // roll (Z)
-        group.rotation.x = Math.cos(t * (TILT_SPEED * 0.7)) * TILT_PITCH_AMPL;  // pitch (X)
-        group.rotation.y = Math.sin(t * YAW_SPEED) * TILT_YAW_AMPL;            // yaw (Y)
-      }
-
-      if (texRef.current) texRef.current.needsUpdate = true;
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      window.removeEventListener("resize", onR);
-      try {
-        lottieAnimRef.current?.destroy?.();
-      } catch {}
-      plane.geometry.dispose();
-      (plane.material as THREE.Material).dispose?.();
-      texRef.current?.dispose?.();
-      renderer.dispose();
-      mount.removeChild(renderer.domElement);
-    };
-  }, [baseRollDeg]);
-
-  // Load ONLY /phone-440x600.json (no fallbacks)
-  useEffect(() => {
-    let disposed = false;
-
-    (async () => {
-      try {
-        const head = await fetch("/phone-440x600.json", { method: "HEAD" });
-        if (!head.ok) throw new Error("phone-440x600.json not found");
-
-        // Hidden off-DOM canvas for Lottie
-        const hidden = document.createElement("div");
-        hidden.style.position = "absolute";
-        hidden.style.left = "-99999px";
-        hidden.style.top = "-99999px";
-        hidden.style.width = `${PHONE_ASPECT_W}px`;
-        hidden.style.height = `${PHONE_ASPECT_H}px`;
-        document.body.appendChild(hidden);
-        hiddenDivRef.current = hidden;
-
-        const lottie = (await import("lottie-web")).default;
-        const anim = lottie.loadAnimation({
-          container: hidden,
-          renderer: "canvas",
-          loop: true,
-          autoplay: true,
-          path: "/phone-440x600.json",
-          rendererSettings: { clearCanvas: true },
-        });
-        lottieAnimRef.current = anim;
-
-        const attach = () => {
-          if (disposed) return;
-          const cvs = hidden.querySelector("canvas") as HTMLCanvasElement | null;
-          if (!cvs) return;
-          const tex = new THREE.CanvasTexture(cvs);
-          tex.colorSpace = THREE.SRGBColorSpace;
-          texRef.current = tex;
-
-          const mesh = groupRef.current?.children[0] as THREE.Mesh | undefined;
-          if (mesh) {
-            const m = mesh.material as THREE.MeshBasicMaterial;
-            m.map = tex;
-            m.transparent = true;
-            m.needsUpdate = true;
-          }
-        };
-
-        anim.addEventListener("DOMLoaded", attach);
-        anim.addEventListener("data_ready", attach);
-      } catch (e) {
-        console.error(e);
-        setError("phone-440x600.json not found");
-        // Tint placeholder so it's obvious something failed
-        const mesh = groupRef.current?.children[0] as THREE.Mesh | undefined;
-        if (mesh) {
-          const m = mesh.material as THREE.MeshBasicMaterial;
-          m.color = new THREE.Color(0xff2d55);
-          m.opacity = 0.15;
-          m.transparent = true;
-          m.needsUpdate = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        compute();
+        if ("fonts" in document) {
+          (document as any).fonts?.ready?.then(compute).catch(() => {});
         }
-      }
-    })();
+      });
+    });
 
-    return () => {
-      disposed = true;
-      try {
-        lottieAnimRef.current?.destroy?.();
-      } catch {}
-      const div = hiddenDivRef.current;
-      if (div && div.parentNode) div.parentNode.removeChild(div);
-      hiddenDivRefRef.current = null;
+    return () => ro.disconnect();
+  }, [items, phase]);
+
+  // seamless continuous motion
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+
+    const loop = (t: number) => {
+      const dt = Math.min(0.05, (t - last) / 1000); // clamp dt
+      last = t;
+
+      const cycle = cyclePxRef.current;
+      let o = offsetPxRef.current + SPEED_PX_PER_S * dt;
+      if (cycle > 0 && o >= cycle) o -= cycle;
+      offsetPxRef.current = o;
+
+      const track = trackRef.current;
+      if (track) track.style.transform = `translateY(${-o}px)`;
+
+      raf = requestAnimationFrame(loop);
     };
+
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
-  return (
-    <div ref={mountRef} className="pointer-events-none select-none">
-      {error && (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded bg-red-600/90 px-2 py-1 text-[11px] font-semibold text-white">
-          {error}
+  const spacerH = cardH;
+  const loopNodes = useMemo(() => {
+  const cycles = [0, 1]; // two cycles are enough (viewport clamped)
+  return cycles.flatMap((cycle) =>
+    items.map((it, idx) => (
+      <div key={`${it.id}-wrap-${idx}-c${cycle}`} className="contents">
+        <div ref={cycle === 0 && idx === 0 ? firstCardRef : undefined}>
+          <FeatureCard id={it.id} text={it.text} />
         </div>
-      )}
+        <div style={{ height: spacerH }} aria-hidden="true" />
+      </div>
+    ))
+  );
+}, [items, spacerH]);
+
+  // soft fade mask top/bottom
+  const maskStyle: React.CSSProperties = {
+    WebkitMaskImage:
+      "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)",
+    maskImage:
+      "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)",
+  };
+
+  return (
+    <div ref={viewportRef} className="relative overflow-hidden" style={maskStyle}>
+      <div ref={trackRef} className="flex flex-col" style={{ rowGap: `${CARD_GAP_REM}rem` }}>
+        {loopNodes}
+      </div>
+    </div>
+  );
+}
+
+/* =============== Card =============== */
+function FeatureCard({ id, text }: { id: string; text: string }) {
+  return (
+    <div
+      className="rounded-2xl bg-white shadow-sm"
+      style={{
+        boxShadow: "0 6px 24px rgba(0,0,0,0.08)",
+        border: "1px solid rgba(0,0,0,0.06)",
+        padding: "clamp(14px,1.2vw,18px)",
+      }}
+    >
+      <div className="text-[clamp(12px,1.1vw,14px)] text-[#9EB0AE] font-extrabold">{id}</div>
+      <div className="mt-1 text-[clamp(16px,1.45vw,19px)] font-extrabold text-[#103B36] leading-[1.15]">
+        {text}
+      </div>
     </div>
   );
 }
