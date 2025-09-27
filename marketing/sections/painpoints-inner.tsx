@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function getWHFromViewBox(svg: SVGSVGElement): { w: number; h: number } | null {
   const vb = svg.getAttribute("viewBox");
@@ -112,7 +112,7 @@ export default function Painpoints() {
           {svgHTML && (
             <div
               className="pointer-events-none absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 select-none"
-              style={{ transform: "translate(-50%, -50%) scale(0.96)" }}
+              style={{ transform: "translate(-50%, -50%)) scale(0.96)" }}
               dangerouslySetInnerHTML={{ __html: svgHTML }}
             />
           )}
@@ -156,18 +156,18 @@ export default function Painpoints() {
             draggable={false}
           />
 
-          {/* Lizard on the right (slightly bigger) */}
-          <img
-            src="/painpoints/lizard.png"
-            alt=""
-            className="absolute z-20 h-auto"
+          {/* Lizard replaced with Lottie */}
+          <LottieInline
+            src="/lizard-500x500.json"
+            fallback="/painpoints/lizard.png"
+            className="absolute z-20 pointer-events-none select-none"
             style={{
               left: "76%",
               top: "25vh",
               width: "clamp(300px,28vw,520px)",
+              aspectRatio: "1 / 1",
               filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.35))",
             }}
-            draggable={false}
           />
 
           {/* Icons row — moved DOWN by SHIFT_VH */}
@@ -205,7 +205,7 @@ export default function Painpoints() {
         </div>
 
         {/* │ Row 2: vertical steps column, pinned to the far right (┐) ───── */}
-        <div className="relative justify-self-end pr-0 w-screen">
+        <div className="relative justify-self-end pr-[0vw]">
           <StepsPanel/>
         </div>
       </div>
@@ -266,7 +266,7 @@ function StepsPanel() {
       className="relative w-full bg-[#0B3F3B] overflow-hidden"
       style={{ minHeight: `${PANEL_VH}vh` }}
     >
-      {/* IMPORTANT: no ml-auto, no right padding; parent grid cell already pins this to the right */}
+      {/* IMPORTANT: height via inline style (dynamic Tailwind classes won't compile) */}
       <div className="relative w-full px-0" style={{ height: `${PANEL_VH}vh` }}>
         {/* Rope (Unio.svg) — centered, shifted slightly left, 70% tall */}
         <img
@@ -352,9 +352,6 @@ function StepsPanel() {
   );
 }
 
-
-
-
 /* ---------- small helper so icons show even if folder differs ---------- */
 function IconImg({
   srcPrimary,
@@ -377,4 +374,52 @@ function IconImg({
       className={className ?? "h-[clamp(56px,7vw,120px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"}
     />
   );
+}
+
+/* ---------- Lottie inline helper (PNG fallback if lottie-web unavailable) ---------- */
+function LottieInline({
+  src,
+  className,
+  style,
+  fallback,
+}: {
+  src: string;
+  className?: string;
+  style?: React.CSSProperties;
+  fallback?: string;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let destroyed = false;
+    let anim: any;
+
+    (async () => {
+      try {
+        const lottie = (window as any).lottie || (await import("lottie-web")).default;
+        if (!boxRef.current || destroyed) return;
+        anim = lottie.loadAnimation({
+          container: boxRef.current,
+          renderer: "svg",
+          loop: true,
+          autoplay: true,
+          path: src,
+        });
+      } catch (e) {
+        console.error("Lottie failed; falling back to image", e);
+        setFailed(true);
+      }
+    })();
+
+    return () => {
+      destroyed = true;
+      try { anim?.destroy?.(); } catch {}
+    };
+  }, [src]);
+
+  if (failed && fallback) {
+    return <img src={fallback} alt="" draggable={false} className={className} style={style} />;
+  }
+  return <div ref={boxRef} className={className} style={style} />;
 }
