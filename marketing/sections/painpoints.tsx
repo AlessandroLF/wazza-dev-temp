@@ -23,7 +23,7 @@ export default function Painpoints() {
           }
         });
       },
-      { rootMargin: "200px 0px" } // mount just before it appears
+      { rootMargin: "200px 0px" }
     );
 
     io.observe(el);
@@ -38,7 +38,6 @@ export default function Painpoints() {
       aria-label="Connect any WhatsApp in 3 simple steps"
     >
       {show ? <Inner /> : (
-        // reserve some space so layout doesn't jump
         <div className="mx-auto max-w-[1400px] px-6 py-[16vh]">
           <h2 className="font-display text-[clamp(24px,4vw,44px)] font-extrabold text-white/90">
             Connect any WhatsApp in 3 Simple Steps
