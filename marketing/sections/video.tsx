@@ -50,9 +50,7 @@ export default function CommunityHeroFullScreen() {
     };
   }, [open]);
 
-  const videoSrc = isMobile
-    ? "/hero/video-mobile.mp4"
-    : "/hero/video-desktop.mp4";
+  const videoSrc = "hhttps://www.youtube.com/watch?v=cfZCfAKd7LE";
 
   return (
     <>

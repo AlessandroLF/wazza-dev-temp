@@ -134,40 +134,75 @@ export default function Painpoints() {
     { iconPrimary: "/steps/3.svg", iconFallback: "/steps/3.svg", title: "Start Sending Messages", copy: "Send unlimited messages, template buttons, and voice replies — all from one dashboard." },
   ];
 
-  // --- controls (unchanged) ---
+  // --- visuals you had ---
   const LINE_NUDGE_PX = -6;
   const SHIFT_VH = 5;
   const LINE_SCALE_Y = 0.40;
+
+  // === SPEED CONTROLS (tweak here) ===
+  const RIGHT_DURATION_MS = 5200; // slower/faster: change these
+  const DOWN_DURATION_MS  = 4000;
 
   // TRANSFORM-BASED "SCROLL"
   const viewportRef = useRef<HTMLElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
-  // requested fractions
+  // travel extents
   const FRACTION_X = 1; // ~45% right
   const FRACTION_Y = 0.85; // ~85% down
 
-  // reveal sequencing state
+  // sequencing refs
   const hSeqRef = useRef<{ el: HTMLElement; threshold: number; shown: boolean }[]>([]);
   const vSeqRef = useRef<{ el: HTMLElement; threshold: number; shown: boolean }[]>([]);
   const runIdRef = useRef(0);
 
-  // helper: build ordered sequences, evenly spaced thresholds
+  // intersection gating
+  const intersectingRef = useRef(new Map<HTMLElement, boolean>());
+  const lastHProgressRef = useRef(0);
+  const lastVProgressRef = useRef(0);
+  const perElIORef = useRef<IntersectionObserver | null>(null);
+
+  // Build sequence where thresholds are based on UNIQUE order groups.
   function buildSequence(container: HTMLElement, axis: "h" | "v") {
     const list = Array.from(container.querySelectorAll<HTMLElement>(`[data-reveal-axis="${axis}"]`));
-    list.sort((a, b) => (parseFloat(a.dataset.order || "0") - parseFloat(b.dataset.order || "0")));
-    const n = list.length || 1;
-    const seq = list.map((el, i) => ({
-      el,
-      threshold: (i + 1) / (n + 1), //  ~even spacing across the motion
-      shown: false,
-    }));
-    // reset classes
-    seq.forEach(({ el }) => el.classList.remove("is-in"));
+    // Sort by order, then DOM order to keep it stable
+    list.sort((a, b) => {
+      const ao = parseFloat(a.dataset.order || "0");
+      const bo = parseFloat(b.dataset.order || "0");
+      return ao === bo ? 0 : ao - bo;
+    });
+
+    const orders = list.map((el) => parseFloat(el.dataset.order || "0"));
+    const uniqueOrders = Array.from(new Set(orders)).sort((a, b) => a - b);
+    const m = uniqueOrders.length || 1;
+
+    const seq = list.map((el) => {
+      const o = parseFloat(el.dataset.order || "0");
+      const idx = uniqueOrders.indexOf(o);
+      const threshold = (idx + 1) / (m + 1); // same threshold for same order group
+      return { el, threshold, shown: false };
+    });
+
+    // hide instantly (no flicker)
+    seq.forEach(({ el }) => {
+      el.classList.remove("is-in");
+      el.style.visibility = "hidden";
+    });
+
     return seq;
   }
 
-  // animate right -> down and restart on re-enter
+  function tryRevealAxis(axis: "h" | "v", progress: number) {
+    const seq = axis === "h" ? hSeqRef.current : vSeqRef.current;
+    for (const item of seq) {
+      if (!item.shown && progress >= item.threshold && intersectingRef.current.get(item.el)) {
+        item.shown = true;
+        item.el.style.visibility = "visible";
+        item.el.classList.add("is-in");
+      }
+    }
+  }
+
   useEffect(() => {
     const viewport = viewportRef.current;
     const scroller = scrollerRef.current;
@@ -176,16 +211,6 @@ export default function Painpoints() {
     scroller.style.willChange = "transform";
 
     const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
-
-    const revealProgress = (axis: "h" | "v", p: number) => {
-      const seq = axis === "h" ? hSeqRef.current : vSeqRef.current;
-      for (const item of seq) {
-        if (!item.shown && p >= item.threshold) {
-          item.shown = true;
-          item.el.classList.add("is-in");
-        }
-      }
-    };
 
     const animate = (
       fromX: number,
@@ -212,26 +237,63 @@ export default function Painpoints() {
         requestAnimationFrame(step);
       });
 
+    // per-element IO
+    const setupPerElementIO = () => {
+      perElIORef.current?.disconnect();
+      intersectingRef.current.clear();
+
+      const els = Array.from(scroller.querySelectorAll<HTMLElement>("[data-reveal]"));
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            const el = e.target as HTMLElement;
+            intersectingRef.current.set(el, e.isIntersecting);
+          }
+          // retry reveal attempts with the latest progress
+          tryRevealAxis("h", lastHProgressRef.current);
+          tryRevealAxis("v", lastVProgressRef.current);
+        },
+        { root: viewport, threshold: 0.05 }
+      );
+      els.forEach((el) => io.observe(el));
+      perElIORef.current = io;
+    };
+
     const startRun = async () => {
       const runId = ++runIdRef.current;
-      scroller.style.transform = "translate3d(0,0,0)";
 
+      // reset without flicker
+      scroller.classList.add("scroller-reset");
+      scroller.style.transform = "translate3d(0,0,0)";
       await new Promise((r) => requestAnimationFrame(r as any));
 
-      // build reveal sequences fresh
+      // (re)build sequences + IO
       hSeqRef.current = buildSequence(scroller, "h");
       vSeqRef.current = buildSequence(scroller, "v");
+      lastHProgressRef.current = 0;
+      lastVProgressRef.current = 0;
+      setupPerElementIO();
 
-      // extents
+      await new Promise((r) => requestAnimationFrame(r as any));
+      scroller.classList.remove("scroller-reset");
+
       const maxX = Math.max(0, scroller.scrollWidth - viewport.clientWidth);
       const maxY = Math.max(0, scroller.scrollHeight - viewport.clientHeight);
 
       const targetX = Math.round(maxX * FRACTION_X);
       const targetY = Math.round(maxY * FRACTION_Y);
 
-      // right, then down — reveal in lockstep
-      await animate(0, targetX, 0, 0, 2600, runId, (p) => revealProgress("h", p));
-      await animate(targetX, targetX, 0, targetY, 2000, runId, (p) => revealProgress("v", p));
+      // Horizontal phase
+      await animate(0, targetX, 0, 0, RIGHT_DURATION_MS, runId, (p) => {
+        lastHProgressRef.current = p;
+        tryRevealAxis("h", p);
+      });
+
+      // Vertical phase
+      await animate(targetX, targetX, 0, targetY, DOWN_DURATION_MS, runId, (p) => {
+        lastVProgressRef.current = p;
+        tryRevealAxis("v", p);
+      });
     };
 
     const io = new IntersectionObserver(
@@ -249,6 +311,7 @@ export default function Painpoints() {
 
     return () => {
       io.disconnect();
+      perElIORef.current?.disconnect();
       ++runIdRef.current; // cancel any in-flight
     };
   }, [panelWidthPx]);
@@ -305,7 +368,7 @@ export default function Painpoints() {
               draggable={false}
             />
 
-            {/* Lottie stays present (no reveal gating) */}
+            {/* Lottie (always present) */}
             <LottieInline
               src="/lizard-500x500.json"
               fallback="/painpoints/lizard.png"
@@ -319,7 +382,7 @@ export default function Painpoints() {
               }}
             />
 
-            {/* Icons row — each icon gets its own order (1..5) */}
+            {/* Icons row — (1..5) */}
             <div className="absolute left-[8%] right-[24%] z-20" style={{ top: `${22 + SHIFT_VH}vh` }}>
               <div className="flex items-center justify-evenly gap-10">
                 {ICONS.map((it, i) => (
@@ -330,11 +393,11 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Labels row — continue ordering (6..10) */}
+            {/* Labels row — MATCHING orders (1..5) so each label appears with its icon */}
             <div className="absolute left-[8%] right-[24%] z-20" style={{ top: `${60 + SHIFT_VH}vh` }}>
               <div className="flex items-start justify-evenly gap-10 text-center text-white/90 leading-[1.05] text-[clamp(18px,2.4vw,28px)]">
                 {ICONS.map((it, i) => (
-                  <div key={i} data-reveal data-reveal-axis="h" data-order={6 + i}>
+                  <div key={i} data-reveal data-reveal-axis="h" data-order={1 + i}>
                     {it.title.map((line, k) => (
                       <span key={k} className="block">
                         {line}
@@ -345,11 +408,11 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Rightmost headline (optional: reveal last on horizontal path) */}
+            {/* Rightmost headline — order 6, after icon/label pairs */}
             <div
               data-reveal
               data-reveal-axis="h"
-              data-order="11"
+              data-order="6"
               className="absolute right-[4vw] top-[9vh] z-20"
             >
               <h3 className="font-display font-extrabold text-white leading-[0.9] tracking-[-0.01em] text-[clamp(20px,2.6vw,38px)] text-right">
@@ -367,23 +430,32 @@ export default function Painpoints() {
         </div>
       </div>
 
-      {/* Reveal styles */}
+      {/* Reveal + Reset styles */}
       <style jsx>{`
+        /* prevent flicker on reset */
+        .scroller-reset [data-reveal] {
+          transition: none !important;
+        }
+
         [data-reveal] {
           opacity: 0;
+          visibility: hidden;
           transform: translateY(18px);
-          transition: opacity 600ms ease, transform 600ms ease;
+          transition: opacity 600ms ease, transform 600ms ease, visibility 0s linear 600ms;
+          will-change: opacity, transform;
         }
         [data-reveal].is-in {
+          visibility: visible;
           opacity: 1;
           transform: none;
+          transition: opacity 600ms ease, transform 600ms ease;
         }
       `}</style>
     </section>
   );
 }
 
-/* ---------- FINAL StepsPanel with your values + text X controls + sequenced reveals ---------- */
+/* ---------- FINAL StepsPanel (your values) + sequenced vertical reveals ---------- */
 function StepsPanel() {
   // ---- controls (yours — unchanged) ----
   const LINE_NUDGE_PX = -6;           // tiny vertical nudge for Unio.svg (down = +)
@@ -442,8 +514,7 @@ function StepsPanel() {
           }}
         />
 
-        {/* Markers & Texts in alternating vertical sequence:
-            1: marker1, 2: text1, 3: marker2, 4: text2, 5: marker3, 6: text3 */}
+        {/* Markers (1,3,5) */}
         {STEP_Y.map((y, i) => (
           <img
             key={`marker-${i}`}
@@ -465,6 +536,7 @@ function StepsPanel() {
           />
         ))}
 
+        {/* Texts (2,4,6) */}
         {STEPS.map((s, i) => {
           const y = STEP_Y[i] + SHIFT_VH + (TEXT_OFFSET_VH[i] ?? 0);
           const x = TEXT_X_PX[i] ?? 0;
@@ -505,7 +577,7 @@ function StepsPanel() {
           );
         })}
 
-        {/* Bottom jagged background (reveal last) */}
+        {/* Bottom jagged background (7) */}
         <img
           data-reveal
           data-reveal-axis="v"
