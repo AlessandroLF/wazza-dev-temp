@@ -128,32 +128,56 @@ export default function Painpoints() {
     { primary: "/painpoints/5.svg", fallback: "/5.svg", title: ["Works only with", "approved business", "numbers"] },
   ];
 
-  const STEPS: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> = [
-    { iconPrimary: "/steps/1.svg", iconFallback: "/steps/1.svg", title: "Scan QR Code", copy: "Easily link any WhatsApp number in seconds — no approval required." },
-    { iconPrimary: "/steps/2.svg", iconFallback: "/steps/2.svg", title: "Connect Your Automation Tool", copy: "Integrate with your favorite CRM instantly, without coding or complex setups." },
-    { iconPrimary: "/steps/3.svg", iconFallback: "/steps/3.svg", title: "Start Sending Messages", copy: "Send unlimited messages, template buttons, and voice replies — all from one dashboard." },
-  ];
-
   // --- visuals you had ---
   const LINE_NUDGE_PX = -6;
   const SHIFT_VH = 5;
   const LINE_SCALE_Y = 0.40;
 
-  // === SPEED CONTROLS (tweak here) ===
-  const RIGHT_DURATION_MS = 5200; // slower/faster: change these
+  // === SPEED CONTROLS ===
+  const RIGHT_DURATION_MS = 5200;
   const DOWN_DURATION_MS  = 4000;
+
+  // === REVEAL BEHAVIOR CONTROLS ===
+  const REVEAL_EARLY = 0.12;
+  const GROUP_STAGGER_MS = 140;
+  const IO_ROOT_MARGIN = "18% 12% 18% 12%";
+  const IO_THRESHOLD = 0.01;
+
+  // === LIZARD CHOREO CONTROLS (vw & timing) ===
+  // right offset in vw at each key moment; tweak these to fine-tune X
+  const LIZARD_X_VW = {
+    start: 6,     // initial (flipped left)
+    preHalt: 8,   // where it "stops" near the end of the horizontal phase
+    vMid: 2,      // halfway down vertical, go further right
+    vEnd: 6,      // end of vertical, come back
+  };
+  const LIZARD_TOP_VH = 2;            // sticky top offset
+  const LIZARD_FLIP_AT_H = 0.18;      // during horizontal: flip from left→right by this progress
+  const LIZARD_H_PRE_WINDOW = 0.22;   // portion of horizontal used to move from start→preHalt
+  const LIZARD_FLIP_AT_V = 0.50;      // during vertical: flip at mid (right→left)
 
   // TRANSFORM-BASED "SCROLL"
   const viewportRef = useRef<HTMLElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  // sticky lizard ref
+  const lizardRef = useRef<HTMLDivElement | null>(null);
 
   // travel extents
   const FRACTION_X = 1; // ~45% right
   const FRACTION_Y = 0.85; // ~85% down
 
   // sequencing refs
-  const hSeqRef = useRef<{ el: HTMLElement; threshold: number; shown: boolean }[]>([]);
-  const vSeqRef = useRef<{ el: HTMLElement; threshold: number; shown: boolean }[]>([]);
+  type RevealItem = { el: HTMLElement; threshold: number; shown: boolean; groupIndex: number; order: number };
+  const hSeqRef = useRef<RevealItem[]>([]);
+  const vSeqRef = useRef<RevealItem[]>([]);
+  const hGroupThresholdsRef = useRef<number[]>([]);
+  const vGroupThresholdsRef = useRef<number[]>([]);
+  const hGroupsRef = useRef<Map<number, RevealItem[]>>(new Map());
+  const vGroupsRef = useRef<Map<number, RevealItem[]>>(new Map());
+  const hGroupShownRef = useRef<boolean[]>([]);
+  const vGroupShownRef = useRef<boolean[]>([]);
+
   const runIdRef = useRef(0);
 
   // intersection gating
@@ -162,10 +186,8 @@ export default function Painpoints() {
   const lastVProgressRef = useRef(0);
   const perElIORef = useRef<IntersectionObserver | null>(null);
 
-  // Build sequence where thresholds are based on UNIQUE order groups.
   function buildSequence(container: HTMLElement, axis: "h" | "v") {
     const list = Array.from(container.querySelectorAll<HTMLElement>(`[data-reveal-axis="${axis}"]`));
-    // Sort by order, then DOM order to keep it stable
     list.sort((a, b) => {
       const ao = parseFloat(a.dataset.order || "0");
       const bo = parseFloat(b.dataset.order || "0");
@@ -174,34 +196,74 @@ export default function Painpoints() {
 
     const orders = list.map((el) => parseFloat(el.dataset.order || "0"));
     const uniqueOrders = Array.from(new Set(orders)).sort((a, b) => a - b);
-    const m = uniqueOrders.length || 1;
+    const orderToGroup = new Map<number, number>();
+    uniqueOrders.forEach((o, idx) => orderToGroup.set(o, idx));
+    const groupCount = uniqueOrders.length || 1;
 
-    const seq = list.map((el) => {
-      const o = parseFloat(el.dataset.order || "0");
-      const idx = uniqueOrders.indexOf(o);
-      const threshold = (idx + 1) / (m + 1); // same threshold for same order group
-      return { el, threshold, shown: false };
-    });
-
-    // hide instantly (no flicker)
-    seq.forEach(({ el }) => {
+    const seq: RevealItem[] = list.map((el) => {
+      const order = parseFloat(el.dataset.order || "0");
+      const gi = orderToGroup.get(order) ?? 0;
+      const threshold = (gi + 1) / (groupCount + 1);
       el.classList.remove("is-in");
       el.style.visibility = "hidden";
+      return { el, threshold, shown: false, groupIndex: gi, order };
     });
 
-    return seq;
+    const groupThresholds: number[] = uniqueOrders.map((_o, gi) => (gi + 1) / (groupCount + 1));
+
+    const groups = new Map<number, RevealItem[]>();
+    for (const item of seq) {
+      const arr = groups.get(item.groupIndex) || [];
+      arr.push(item);
+      groups.set(item.groupIndex, arr);
+    }
+
+    if (axis === "h") {
+      hSeqRef.current = seq;
+      hGroupThresholdsRef.current = groupThresholds;
+      hGroupsRef.current = groups;
+      hGroupShownRef.current = new Array(groupCount).fill(false);
+    } else {
+      vSeqRef.current = seq;
+      vGroupThresholdsRef.current = groupThresholds;
+      vGroupsRef.current = groups;
+      vGroupShownRef.current = new Array(groupCount).fill(false);
+    }
   }
 
   function tryRevealAxis(axis: "h" | "v", progress: number) {
-    const seq = axis === "h" ? hSeqRef.current : vSeqRef.current;
-    for (const item of seq) {
-      if (!item.shown && progress >= item.threshold && intersectingRef.current.get(item.el)) {
-        item.shown = true;
-        item.el.style.visibility = "visible";
-        item.el.classList.add("is-in");
+    const groups = axis === "h" ? hGroupsRef.current : vGroupsRef.current;
+    const shown = axis === "h" ? hGroupShownRef.current : vGroupShownRef.current;
+    const thresholds = axis === "h" ? hGroupThresholdsRef.current : vGroupThresholdsRef.current;
+    const adjustedProgress = Math.min(1, Math.max(0, progress + REVEAL_EARLY));
+
+    thresholds.forEach((th, gi) => {
+      if (shown[gi]) return;
+      if (adjustedProgress >= th) {
+        const items = groups.get(gi) || [];
+        const anyInView = items.some((it) => intersectingRef.current.get(it.el));
+        if (!anyInView) return;
+        shown[gi] = true;
+        const delay = gi * GROUP_STAGGER_MS;
+        window.setTimeout(() => {
+          for (const it of items) {
+            it.shown = true;
+            it.el.style.visibility = "visible";
+            it.el.classList.add("is-in");
+          }
+        }, delay);
       }
-    }
+    });
   }
+
+  // --- Lizard choreo helpers ---
+  const applyLizard = (xVW: number, flipped: boolean) => {
+    const el = lizardRef.current;
+    if (!el) return;
+    el.style.right = `${xVW}vw`;
+    el.style.transform = `scaleX(${flipped ? -1 : 1})`;
+  };
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t));
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -209,6 +271,7 @@ export default function Painpoints() {
     if (!viewport || !scroller) return;
 
     scroller.style.willChange = "transform";
+    lizardRef.current && (lizardRef.current.style.willChange = "transform,right");
 
     const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
@@ -224,7 +287,7 @@ export default function Painpoints() {
       new Promise<void>((resolve) => {
         const t0 = performance.now();
         const step = (now: number) => {
-          if (runIdRef.current !== runId) return resolve(); // cancelled
+          if (runIdRef.current !== runId) return resolve();
           const t = Math.min(1, (now - t0) / ms);
           const eased = easeInOut(t);
           const x = fromX + (toX - fromX) * eased;
@@ -237,7 +300,7 @@ export default function Painpoints() {
         requestAnimationFrame(step);
       });
 
-    // per-element IO
+    // Per-element IO for reveal
     const setupPerElementIO = () => {
       perElIORef.current?.disconnect();
       intersectingRef.current.clear();
@@ -249,11 +312,10 @@ export default function Painpoints() {
             const el = e.target as HTMLElement;
             intersectingRef.current.set(el, e.isIntersecting);
           }
-          // retry reveal attempts with the latest progress
           tryRevealAxis("h", lastHProgressRef.current);
           tryRevealAxis("v", lastVProgressRef.current);
         },
-        { root: viewport, threshold: 0.05 }
+        { root: viewport, threshold: IO_THRESHOLD, rootMargin: IO_ROOT_MARGIN }
       );
       els.forEach((el) => io.observe(el));
       perElIORef.current = io;
@@ -262,14 +324,15 @@ export default function Painpoints() {
     const startRun = async () => {
       const runId = ++runIdRef.current;
 
-      // reset without flicker
+      // Reset scroller + lizard
       scroller.classList.add("scroller-reset");
       scroller.style.transform = "translate3d(0,0,0)";
+      // lizard starts flipped (facing left) at start X
+      applyLizard(LIZARD_X_VW.start, true);
       await new Promise((r) => requestAnimationFrame(r as any));
 
-      // (re)build sequences + IO
-      hSeqRef.current = buildSequence(scroller, "h");
-      vSeqRef.current = buildSequence(scroller, "v");
+      buildSequence(scroller, "h");
+      buildSequence(scroller, "v");
       lastHProgressRef.current = 0;
       lastVProgressRef.current = 0;
       setupPerElementIO();
@@ -283,15 +346,36 @@ export default function Painpoints() {
       const targetX = Math.round(maxX * FRACTION_X);
       const targetY = Math.round(maxY * FRACTION_Y);
 
-      // Horizontal phase
+      // Horizontal phase — lizard: flip early and move start→preHalt, then hold
       await animate(0, targetX, 0, 0, RIGHT_DURATION_MS, runId, (p) => {
         lastHProgressRef.current = p;
+        // movement window
+        if (p <= LIZARD_H_PRE_WINDOW) {
+          const t = p / LIZARD_H_PRE_WINDOW;
+          const xvw = lerp(LIZARD_X_VW.start, LIZARD_X_VW.preHalt, t);
+          const flipped = p < LIZARD_FLIP_AT_H; // flip to face right after threshold
+          applyLizard(xvw, flipped);
+        } else {
+          // hold at preHalt, facing right
+          applyLizard(LIZARD_X_VW.preHalt, false);
+        }
         tryRevealAxis("h", p);
       });
 
-      // Vertical phase
+      // Vertical phase — lizard: at mid flip again & go more right, then come back
       await animate(targetX, targetX, 0, targetY, DOWN_DURATION_MS, runId, (p) => {
         lastVProgressRef.current = p;
+        if (p <= LIZARD_FLIP_AT_V) {
+          const t = p / LIZARD_FLIP_AT_V;
+          const xvw = lerp(LIZARD_X_VW.preHalt, LIZARD_X_VW.vMid, t);
+          // first half: facing right
+          applyLizard(xvw, false);
+        } else {
+          const t = (p - LIZARD_FLIP_AT_V) / (1 - LIZARD_FLIP_AT_V);
+          const xvw = lerp(LIZARD_X_VW.vMid, LIZARD_X_VW.vEnd, t);
+          // second half: flip to face left
+          applyLizard(xvw, true);
+        }
         tryRevealAxis("v", p);
       });
     };
@@ -312,9 +396,16 @@ export default function Painpoints() {
     return () => {
       io.disconnect();
       perElIORef.current?.disconnect();
-      ++runIdRef.current; // cancel any in-flight
+      ++runIdRef.current;
     };
   }, [panelWidthPx]);
+
+  // STEPS data used only inside StepsPanel; left here for consistency
+  const STEPS: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> = [
+    { iconPrimary: "/steps/1.svg", iconFallback: "/steps/1.svg", title: "Scan QR Code", copy: "Easily link any WhatsApp number in seconds — no approval required." },
+    { iconPrimary: "/steps/2.svg", iconFallback: "/steps/2.svg", title: "Connect Your Automation Tool", copy: "Integrate with your favorite CRM instantly, without coding or complex setups." },
+    { iconPrimary: "/steps/3.svg", iconFallback: "/steps/3.svg", title: "Start Sending Messages", copy: "Send unlimited messages, template buttons, and voice replies — all from one dashboard." },
+  ];
 
   return (
     <section
@@ -322,7 +413,7 @@ export default function Painpoints() {
       id="painpoints"
       aria-label="WhatsApp API pain points"
       className="relative w-screen h-[100vh] bg-[#0B3F3B] overflow-hidden"
-      style={{ touchAction: "auto", overscrollBehavior: "auto" }} // allow page scroll
+      style={{ touchAction: "auto", overscrollBehavior: "auto" }}
     >
       {/* Sticky left headline */}
       <div className="pointer-events-none absolute left-[4vw] top-[6vh] z-30">
@@ -330,6 +421,22 @@ export default function Painpoints() {
           <span className="block">The Problem With</span>
           <span className="block">the WhatsApp API</span>
         </h2>
+      </div>
+
+      {/* Sticky lizard (Lottie) — choreographed via JS */}
+      <div
+        ref={lizardRef as any}
+        className="absolute z-30 pointer-events-none select-none"
+        style={{
+          right: `${LIZARD_X_VW.start}vw`,
+          top: `${LIZARD_TOP_VH}vh`,
+          width: "clamp(300px,28vw,520px)",
+          height: "clamp(300px,28vw,520px)",
+          filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.35))",
+          transform: "scaleX(-1)",
+        }}
+      >
+        <LottieInline src="/lizard-500x500.json" fallback="/painpoints/lizard.png" className="w-full h-full" />
       </div>
 
       {/* SCROLLER (animated via translate3d) */}
@@ -368,21 +475,7 @@ export default function Painpoints() {
               draggable={false}
             />
 
-            {/* Lottie (always present) */}
-            <LottieInline
-              src="/lizard-500x500.json"
-              fallback="/painpoints/lizard.png"
-              className="absolute z-20 pointer-events-none select-none"
-              style={{
-                left: "73%",
-                top: "0vh",
-                width: "clamp(300px,28vw,520px)",
-                height: "clamp(300px,28vw,520px)",
-                filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.35))",
-              }}
-            />
-
-            {/* Icons row — (1..5) */}
+            {/* Icons row — orders 1..5 */}
             <div className="absolute left-[8%] right-[24%] z-20" style={{ top: `${22 + SHIFT_VH}vh` }}>
               <div className="flex items-center justify-evenly gap-10">
                 {ICONS.map((it, i) => (
@@ -393,7 +486,7 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Labels row — MATCHING orders (1..5) so each label appears with its icon */}
+            {/* Labels row — matching orders 1..5 */}
             <div className="absolute left-[8%] right-[24%] z-20" style={{ top: `${60 + SHIFT_VH}vh` }}>
               <div className="flex items-start justify-evenly gap-10 text-center text-white/90 leading-[1.05] text-[clamp(18px,2.4vw,28px)]">
                 {ICONS.map((it, i) => (
@@ -408,7 +501,7 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Rightmost headline — order 6, after icon/label pairs */}
+            {/* Rightmost headline — order 6 */}
             <div
               data-reveal
               data-reveal-axis="h"
@@ -432,11 +525,9 @@ export default function Painpoints() {
 
       {/* Reveal + Reset styles */}
       <style jsx>{`
-        /* prevent flicker on reset */
         .scroller-reset [data-reveal] {
           transition: none !important;
         }
-
         [data-reveal] {
           opacity: 0;
           visibility: hidden;
