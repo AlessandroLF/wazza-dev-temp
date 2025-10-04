@@ -50,7 +50,9 @@ function LottieInline({
 
     return () => {
       destroyed = true;
-      try { anim?.destroy?.(); } catch {}
+      try {
+        anim?.destroy?.();
+      } catch {}
     };
   }, [src]);
 
@@ -101,7 +103,9 @@ export default function Painpoints() {
         console.error("Failed to load/parse /wazzap.svg", e);
       }
     })();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, []);
 
   const panelWidthPx = useMemo(() => {
@@ -131,11 +135,11 @@ export default function Painpoints() {
   // --- visuals you had ---
   const LINE_NUDGE_PX = -6;
   const SHIFT_VH = 5;
-  const LINE_SCALE_Y = 0.40;
+  const LINE_SCALE_Y = 0.4;
 
   // === SPEED CONTROLS ===
   const RIGHT_DURATION_MS = 5200;
-  const DOWN_DURATION_MS  = 5200;
+  const DOWN_DURATION_MS = 5200;
 
   // === REVEAL BEHAVIOR CONTROLS ===
   const REVEAL_EARLY = 0.25;
@@ -144,36 +148,24 @@ export default function Painpoints() {
   const IO_THRESHOLD = 0.01;
 
   // === LIZARD CHOREO CONTROLS (vw & timing) ===
-  // X positions (as CSS right: vw) — higher number = further LEFT (since we anchor from right)
+  // X positions (as CSS right: vw) — higher number = further LEFT (we anchor from right)
   const LIZARD_X_VW = {
-    start: 6,     // initial (flipped LEFT)
-    preHalt: 8,   // end of horizontal phase (hold)
-    vMid: 40,     // rightmost position during vertical
-    vLeft: -10,   // go left after holding at vMid
-    vEnd: 60,     // final come back
+    start: 6,
+    preHalt: 8,
+    vMid: 40,
+    vLeft: -10,
+    vEnd: 60,
   };
-  const LIZARD_TOP_VH = 2; // sticky top offset
+  const LIZARD_TOP_VH = 2;
 
-  // Horizontal: flip to face RIGHT early while moving to preHalt, then hold
-  const LIZARD_FLIP_AT_H = 0.18;   // fraction of horizontal progress
+  const LIZARD_FLIP_AT_H = 0.18;
   const LIZARD_H_PRE_WINDOW = 0.22;
 
-  // Vertical easing shape (lower = faster start, higher = slower)
-  const LIZARD_V_START_EXP = 0.85;
-
-  // ► NEW: vertical timeline broken into durations (sum ≈ 1.0)
-  // Slower movements + pauses at each height
-  const LIZARD_V_DUR = {
-    startHold: 0.08,  // pause at start (preHalt)
-    toMid:     0.28,  // move to vMid (slower)
-    midHold:   0.12,  // pause at vMid
-    toLeft:    0.28,  // move to vLeft (slower)
-    leftHold:  0.08,  // pause at vLeft
-    toEnd:     0.16,  // move to vEnd (final, a bit quicker)
-  } as const;
-
-  // Flip point during final return (0..1 of the "toEnd" segment)
-  const LIZARD_V_TOEND_FLIP_FRACTION = 0.35;
+  const LIZARD_V_START_EXP = 0.6;
+  const LIZARD_VMID_ARRIVE = 0.24;
+  const LIZARD_VMID_HOLD = 0.3;
+  const LIZARD_V_LEFT_REACH = 0.68;
+  const LIZARD_V_BACK_FLIP = 0.78;
 
   // TRANSFORM-BASED "SCROLL"
   const viewportRef = useRef<HTMLElement | null>(null);
@@ -182,7 +174,7 @@ export default function Painpoints() {
   // sticky lizard ref
   const lizardRef = useRef<HTMLDivElement | null>(null);
 
-  // travel extents
+  // travel extents (as accepted earlier)
   const FRACTION_X = 1;
   const FRACTION_Y = 0.85;
 
@@ -283,7 +275,6 @@ export default function Painpoints() {
     el.style.transform = `scaleX(${flipped ? -1 : 1})`;
   };
   const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t));
-  const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -292,6 +283,8 @@ export default function Painpoints() {
 
     scroller.style.willChange = "transform";
     lizardRef.current && (lizardRef.current.style.willChange = "transform,right");
+
+    const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const animate = (
       fromX: number,
@@ -345,7 +338,7 @@ export default function Painpoints() {
       // Reset scroller + lizard
       scroller.classList.add("scroller-reset");
       scroller.style.transform = "translate3d(0,0,0)";
-      applyLizard(LIZARD_X_VW.start, true); // start flipped LEFT
+      applyLizard(LIZARD_X_VW.start, true);
       await new Promise((r) => requestAnimationFrame(r as any));
 
       buildSequence(scroller, "h");
@@ -363,13 +356,13 @@ export default function Painpoints() {
       const targetX = Math.round(maxX * FRACTION_X);
       const targetY = Math.round(maxY * FRACTION_Y);
 
-      // Horizontal phase — flip early and move start→preHalt, then hold
+      // Horizontal phase
       await animate(0, targetX, 0, 0, RIGHT_DURATION_MS, runId, (p) => {
         lastHProgressRef.current = p;
         if (p <= LIZARD_H_PRE_WINDOW) {
           const t = p / LIZARD_H_PRE_WINDOW;
           const xvw = lerp(LIZARD_X_VW.start, LIZARD_X_VW.preHalt, t);
-          const flipped = p < LIZARD_FLIP_AT_H; // flip to face RIGHT after this threshold
+          const flipped = p < LIZARD_FLIP_AT_H;
           applyLizard(xvw, flipped);
         } else {
           applyLizard(LIZARD_X_VW.preHalt, false);
@@ -377,45 +370,30 @@ export default function Painpoints() {
         tryRevealAxis("h", p);
       });
 
-      // Vertical phase — slower moves + pauses at each height
+      // Vertical phase
       await animate(targetX, targetX, 0, targetY, DOWN_DURATION_MS, runId, (p) => {
         lastVProgressRef.current = p;
 
-        // progress shape
         const pv = Math.pow(p, LIZARD_V_START_EXP);
+        const segA = LIZARD_VMID_ARRIVE;
+        const segB = LIZARD_VMID_ARRIVE + LIZARD_VMID_HOLD;
+        const segC = LIZARD_V_LEFT_REACH;
+        const segD = 1;
 
-        // cumulative segment thresholds
-        const s0 = LIZARD_V_DUR.startHold;
-        const s1 = s0 + LIZARD_V_DUR.toMid;
-        const s2 = s1 + LIZARD_V_DUR.midHold;
-        const s3 = s2 + LIZARD_V_DUR.toLeft;
-        const s4 = s3 + LIZARD_V_DUR.leftHold;
-        const s5 = s4 + LIZARD_V_DUR.toEnd; // should be ~1
-
-        if (pv <= s0) {
-          // hold at start (preHalt), face RIGHT
-          applyLizard(LIZARD_X_VW.preHalt, false);
-        } else if (pv <= s1) {
-          // move -> vMid (slower)
-          const t = (pv - s0) / (s1 - s0);
-          const xvw = lerp(LIZARD_X_VW.preHalt, LIZARD_X_VW.vMid, easeInOut(t));
-          applyLizard(xvw, false); // face RIGHT
-        } else if (pv <= s2) {
-          // hold at vMid
+        if (pv <= segA) {
+          const t = pv / segA;
+          const xvw = lerp(LIZARD_X_VW.preHalt, LIZARD_X_VW.vMid, t);
+          applyLizard(xvw, false);
+        } else if (pv <= segB) {
           applyLizard(LIZARD_X_VW.vMid, false);
-        } else if (pv <= s3) {
-          // flip & move to vLeft (slower)
-          const t = (pv - s2) / (s3 - s2);
-          const xvw = lerp(LIZARD_X_VW.vMid, LIZARD_X_VW.vLeft, easeInOut(t));
-          applyLizard(xvw, true); // face LEFT
-        } else if (pv <= s4) {
-          // hold at vLeft
-          applyLizard(LIZARD_X_VW.vLeft, true);
+        } else if (pv <= segC) {
+          const t = (pv - segB) / (segC - segB);
+          const xvw = lerp(LIZARD_X_VW.vMid, LIZARD_X_VW.vLeft, t);
+          applyLizard(xvw, true);
         } else {
-          // move back to vEnd, flip back to RIGHT partway through
-          const t = (pv - s4) / Math.max(1e-6, (s5 - s4));
-          const xvw = lerp(LIZARD_X_VW.vLeft, LIZARD_X_VW.vEnd, easeInOut(t));
-          const flippedRight = t >= LIZARD_V_TOEND_FLIP_FRACTION;
+          const flippedRight = pv >= LIZARD_V_BACK_FLIP;
+          const t = (pv - segC) / (segD - segC);
+          const xvw = lerp(LIZARD_X_VW.vLeft, LIZARD_X_VW.vEnd, t);
           applyLizard(xvw, !flippedRight);
         }
 
@@ -443,12 +421,15 @@ export default function Painpoints() {
     };
   }, [panelWidthPx]);
 
-  // STEPS data used only inside StepsPanel; left here for consistency
-  const STEPS: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> = [
-    { iconPrimary: "/steps/1.svg", iconFallback: "/steps/1.svg", title: "Scan QR Code", copy: "Easily link any WhatsApp number in seconds — no approval required." },
-    { iconPrimary: "/steps/2.svg", iconFallback: "/steps/2.svg", title: "Connect Your Automation Tool", copy: "Integrate with your favorite CRM instantly, without coding or complex setups." },
-    { iconPrimary: "/steps/3.svg", iconFallback: "/steps/3.svg", title: "Start Sending Messages", copy: "Send unlimited messages, template buttons, and voice replies — all from one dashboard." },
-  ];
+  // gradient style (inline — avoids styled-jsx nesting)
+  const brandGradientStyle: React.CSSProperties = {
+    color: "transparent",
+    backgroundImage:
+      "linear-gradient(90deg,#EAFF4F 0%,#CFFF58 35%,#7FF083 70%,#55E0A0 100%)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    textShadow: "0 0 10px rgba(122,255,130,0.12)",
+  };
 
   return (
     <section
@@ -460,9 +441,9 @@ export default function Painpoints() {
     >
       {/* Sticky left headline */}
       <div className="pointer-events-none absolute left-[4vw] top-[6vh] z-30">
-        <h2 className="font-display font-extrabold text-white leading-[0.9] tracking-[-0.01em] text-[clamp(22px,3vw,42px)]">
-          <span className="block">The Problem With</span>
-          <span className="block">the WhatsApp API</span>
+        <h2 className="font-display font-extrabold leading-[0.9] tracking-[-0.01em] text-[clamp(22px,3vw,42px)]">
+          <span className="block text-white">The Problem With</span>
+          <span className="block text-white">the WhatsApp API</span>
         </h2>
       </div>
 
@@ -472,7 +453,7 @@ export default function Painpoints() {
         className="absolute z-30 pointer-events-none select-none"
         style={{
           right: `${LIZARD_X_VW.start}vw`,
-          top: `2vh`,
+          top: `${LIZARD_TOP_VH}vh`,
           width: "clamp(300px,28vw,520px)",
           height: "clamp(300px,28vw,520px)",
           filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.35))",
@@ -484,10 +465,7 @@ export default function Painpoints() {
 
       {/* SCROLLER (animated via translate3d) */}
       <div ref={scrollerRef}>
-        <div
-          className="relative grid"
-          style={{ width: widthStyle, gridTemplateRows: "100vh auto" }}
-        >
+        <div className="relative grid" style={{ width: widthStyle, gridTemplateRows: "100vh auto" }}>
           {/* Row 1 */}
           <div className="relative h-[100vh] pt-[12vh]">
             {svgHTML && (
@@ -529,7 +507,7 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Labels row — matching orders 1..5 */}
+            {/* Labels row — orders 1..5 (paired with icons) */}
             <div className="absolute left-[8%] right-[24%] z-20" style={{ top: `${60 + SHIFT_VH}vh` }}>
               <div className="flex items-start justify-evenly gap-10 text-center text-white/90 leading-[1.05] text-[clamp(18px,2.4vw,28px)]">
                 {ICONS.map((it, i) => (
@@ -544,24 +522,25 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Rightmost headline — order 6 */}
-            <div
-              data-reveal
-              data-reveal-axis="h"
-              data-order="6"
-              className="absolute right-[4vw] top-[9vh] z-20"
-            >
-              <h3 className="font-display font-extrabold text-white leading-[0.9] tracking-[-0.01em] text-[clamp(20px,2.6vw,38px)] text-right">
-                <span className="block">Connect any</span>
-                <span className="block">WhatsApp in</span>
-                <span className="block">3 Simple Steps</span>
+            {/* Rightmost headline — order 6 (brand gradient applied inline) */}
+            <div data-reveal data-reveal-axis="h" data-order="6" className="absolute right-[4vw] top-[9vh] z-20">
+              <h3 className="font-display font-extrabold leading-[1.02] tracking-[-0.01em] text-[clamp(20px,2.6vw,38px)] text-right">
+                <span className="block" style={brandGradientStyle}>
+                  Connect any
+                </span>
+                <span className="block" style={brandGradientStyle}>
+                  WhatsApp in
+                </span>
+                <span className="block" style={brandGradientStyle}>
+                  3 Simple Steps
+                </span>
               </h3>
             </div>
           </div>
 
           {/* Row 2 (steps) */}
           <div className="relative justify-self-end pr-0 w-screen">
-            <StepsPanel/>
+            <StepsPanel />
           </div>
         </div>
       </div>
@@ -592,22 +571,22 @@ export default function Painpoints() {
 /* ---------- FINAL StepsPanel (your values) + sequenced vertical reveals ---------- */
 function StepsPanel() {
   // ---- controls (yours — unchanged) ----
-  const LINE_NUDGE_PX = -6;           // tiny vertical nudge for Unio.svg (down = +)
-  const SHIFT_VH = 0;                 // push markers + text down (vh)
-  const PLUS_SIZE_PX = 34;            // /steps/plus.svg size
+  const LINE_NUDGE_PX = -6;
+  const SHIFT_VH = 0;
+  const PLUS_SIZE_PX = 34;
 
   // panel/rope sizing
-  const PANEL_VH = 180;               // panel height
-  const ROPE_HEIGHT_PCT = 75;         // rope = % of panel height
-  const ROPE_OVERFLOW_TOP_PX = -458;  // lift rope above panel top (negative = up)
+  const PANEL_VH = 180;
+  const ROPE_HEIGHT_PCT = 75;
+  const ROPE_OVERFLOW_TOP_PX = -458;
 
   // horizontal alignment
-  const ROPE_X_OFFSET_PX = 80;        // move rope a bit LEFT (negative = left)
-  const MARKER_X_PX = [265, 255, 300]; // per-marker X nudges (top→bottom)
+  const ROPE_X_OFFSET_PX = 80;
+  const MARKER_X_PX = [265, 255, 300];
 
   // vertical positions
-  const STEP_Y = [0, 43, 81];         // marker/text anchors (vh from top)
-  const TEXT_OFFSET_VH = [0, 0, 10];  // extra downshift for each text block
+  const STEP_Y = [0, 43, 81];
+  const TEXT_OFFSET_VH = [0, 0, 10];
 
   // per-step X nudges for the text blocks (px)
   const TEXT_X_PX = [0, 500, 370];
@@ -624,11 +603,7 @@ function StepsPanel() {
   ];
 
   return (
-    <section
-      id="steps"
-      className="relative w-full bg-[#0B3F3B] overflow-visible"
-      style={{ minHeight: `${PANEL_VH}vh` }}
-    >
+    <section id="steps" className="relative w-full bg-[#0B3F3B] overflow-visible" style={{ minHeight: `${PANEL_VH}vh` }}>
       <div className="relative w-full px-0 overflow-visible" style={{ height: `${PANEL_VH}vh` }}>
         {/* Steps rope (v order 0) */}
         <img
@@ -680,9 +655,11 @@ function StepsPanel() {
           const pCls = "mt-2 text-white/90 text-[clamp(12px,1.1vw,14px)]";
 
           const sidePosition =
-            s.side === "left" ? "left-[8vw] text-left"
-            : s.side === "right" ? "right-[8vw] text-right"
-            : "left-1/2 -translate-x-1/2 text-center";
+            s.side === "left"
+              ? "left-[8vw] text-left"
+              : s.side === "right"
+              ? "right-[8vw] text-right"
+              : "left-1/2 -translate-x-1/2 text-center";
 
           return (
             <div
@@ -740,7 +717,9 @@ function IconImg({
   return (
     <img
       src={src}
-      onError={() => { if (src !== srcFallback) setSrc(srcFallback); }}
+      onError={() => {
+        if (src !== srcFallback) setSrc(srcFallback);
+      }}
       alt=""
       draggable={false}
       className={className ?? "h-[clamp(56px,7vw,120px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"}
