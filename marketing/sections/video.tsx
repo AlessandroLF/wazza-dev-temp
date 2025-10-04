@@ -11,7 +11,7 @@ export default function CommunityHeroFullScreen() {
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // pick desktop/mobile video
+  // pick desktop/mobile video (kept in case you want different imagery later)
   useEffect(() => {
     const update = () =>
       setIsMobile(window.matchMedia("(max-width: 768px)").matches);
@@ -50,7 +50,9 @@ export default function CommunityHeroFullScreen() {
     };
   }, [open]);
 
-  const videoSrc = "hhttps://www.youtube.com/watch?v=cfZCfAKd7LE";
+  // YouTube embed
+  const YT_ID = "cfZCfAKd7LE";
+  const embedSrc = `https://www.youtube-nocookie.com/embed/${YT_ID}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&showinfo=0`;
 
   return (
     <>
@@ -64,17 +66,17 @@ export default function CommunityHeroFullScreen() {
         <div className="mx-auto grid h-[100svh] w-full grid-rows-[auto,1fr] gap-4 px-[4vw] py-6">
           {/* Header block */}
           <div className="grid grid-cols-1 gap-2 items-end md:grid-cols-3">
-  <h2 className="md:col-span-3 font-display font-extrabold leading-[1.05] text-[#0B3F3B] text-[clamp(26px,4.6vw,56px)]">
-    <span className="block">Learn Now to Build</span>
-    <span className="block">Your Whatsapp</span>
-    <span className="block">Marketing Agency</span>
-  </h2>
+            <h2 className="md:col-span-3 font-display font-extrabold leading-[1.05] text-[#0B3F3B] text-[clamp(26px,4.6vw,56px)]">
+              <span className="block">Learn Now to Build</span>
+              <span className="block">Your Whatsapp</span>
+              <span className="block">Marketing Agency</span>
+            </h2>
 
-  <p className="md:col-span-3 mt-1 text-center text-[#0B3F3B]/85 font-semibold leading-snug text-[clamp(16px,1.6vw,22px)]">
-    <span className="block">How to launch, market,</span>
-    <span className="block">sell and deliver</span>
-  </p>
-</div>
+            <p className="md:col-span-3 mt-1 text-center text-[#0B3F3B]/85 font-semibold leading-snug text-[clamp(16px,1.6vw,22px)]">
+              <span className="block">How to launch, market,</span>
+              <span className="block">sell and deliver</span>
+            </p>
+          </div>
 
           {/* Card row — fills leftover height */}
           <div className="relative mx-auto h-full w-full overflow-hidden rounded-[22px] shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
@@ -88,7 +90,7 @@ export default function CommunityHeroFullScreen() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/video.png"
-                alt=""
+                alt="Play the course intro"
                 className="h-full w-full select-none object-cover"
                 draggable={false}
               />
@@ -141,14 +143,14 @@ export default function CommunityHeroFullScreen() {
             </svg>
           </button>
 
-          <video
-            key={videoSrc}
-            src={videoSrc}
-            className="absolute inset-0 z-[105] h-full w-full object-cover"
-            autoPlay
-            muted
-            playsInline
-            // controls removed on purpose
+          {/* YouTube embed */}
+          <iframe
+            key={YT_ID}
+            className="absolute inset-0 z-[105] h-full w-full"
+            src={embedSrc}
+            title="WhatsApp Marketing Agency — Intro"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
           />
         </div>
       )}

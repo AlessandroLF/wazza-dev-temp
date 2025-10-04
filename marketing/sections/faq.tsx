@@ -11,41 +11,38 @@ const ITEMS: FaqItem[] = [
   {
     q: "Is Wazzap using the official WhatsApp API?",
     a: [
-      "Wazzap provides safety measures to mitigate the risk of number bans or spam. You can connect up to 5 WhatsApp numbers in one subaccount and easily switch the sending number.",
-      "Additionally, our spintax feature allows you to create message variations, reducing the chances of being marked as spam. It’s important to note that while there is a risk of number bans, our community group can provide valuable insights on how to avoid them. (Join here)"
+      "No, Wazzap does not use the official WhatsApp API. However, this allows us to offer a unique advantage — sending unlimited WhatsApp messages at a flat fee, without any additional costs.",
     ],
   },
   {
     q: "How does Wazzap ensure safety and prevent number bans or spam issues?",
     a: [
-      "We recommend gradual warm-up, sane sending caps, and human-like pacing.",
-      "Spintax and template variety reduce repetition. Keep messages helpful and conversational.",
-      "If a number gets flagged, rotate the sender while you cool down and adjust content."
+      "Wazzap provides safety measures to mitigate the risk of number bans or spam. You can connect up to 5 WhatsApp numbers in one subaccount and easily switch the sending number.",
+      "Additionally, our spintax feature allows you to create message variations, reducing the chances of being marked as spam. It’s important to note that while there is a risk of number bans, our community group can provide valuable insights on how to avoid them. (Join here)",
     ],
   },
   {
     q: "Is there a risk of getting my number banned with Wazzap?",
     a: [
-      "Any platform that sends WhatsApp messages carries some risk. We minimize it with guardrails, best-practice guides, and community support so you know what’s working right now."
+      "There is a risk of number bans as Wazzap does not use the official WhatsApp API. However, by following best practices such as warming up your number and leveraging the advice and experiences shared in our community group, you can minimize this risk and ensure a stable and successful messaging strategy.",
     ],
   },
   {
     q: "How does the GHL conversation tab work with Wazzap?",
     a: [
-      "All messages appear in your GHL conversations so your team can reply in one place.",
-      "Assign conversations, add notes, and keep full chat history per contact."
+      "With Wazzap, the GHL conversation tab is designed to replace SMS functionality. You can still utilize variables for appointment reminders, just as you would in a typical SMS workflow. Instead of sending an SMS, Wazzap sends a WhatsApp message, offering a more convenient and engaging communication channel for your customers.",
     ],
   },
   {
     q: "Can Wazzap integrate with ChatGPT to create a bot easily?",
     a: [
-      "Yes. Connect your automations to ChatGPT through your preferred workflow tool (e.g., n8n, Make, Zapier) and create smart replies or flows. Test in a sandbox number first."
+      "Absolutely! Wazzap offers seamless integration with ChatGPT, allowing you to effortlessly create a bot using the power of AI. Simply provide your OpenAI API key, and you'll be able to leverage ChatGPT's capabilities to build intelligent conversational experiences. Additionally, Wazzap enables you to reply with voice notes and transcribe them in your preferred language, enhancing the interactive nature of your bot.",
     ],
   },
   {
     q: "Can I connect a number to Gohighlevel while using Wazzap?",
     a: [
-      "Yes. Wazzap is designed to work alongside your GHL setup. Connect numbers, assign to subaccounts, and route messages to the right team."
+      "Absolutely! With Wazzap, you can seamlessly connect your number (Leadconnector or Twilio) to Gohighlevel. This integration enables you to make and receive phone calls as usual but you CAN'T send SMS anymore. Additionally, Wazzap enhances the functionality of Gohighlevel's missed call text back feature by sending a WhatsApp message instead of an SMS. This offers a more convenient and engaging communication experience for your customers. Moreover, Wazzap empowers you to leverage webhooks and allows you to respond to incoming WhatsApp calls with automated messages. Yes, you can even handle Missed WhatsApp calls with Wazzap!",
     ],
   },
 ];
@@ -165,4 +162,3 @@ function FaqRow({
     </div>
   );
 }
-

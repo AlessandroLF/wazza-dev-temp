@@ -135,26 +135,45 @@ export default function Painpoints() {
 
   // === SPEED CONTROLS ===
   const RIGHT_DURATION_MS = 5200;
-  const DOWN_DURATION_MS  = 4000;
+  const DOWN_DURATION_MS  = 5200;
 
   // === REVEAL BEHAVIOR CONTROLS ===
-  const REVEAL_EARLY = 0.12;
+  const REVEAL_EARLY = 0.25;
   const GROUP_STAGGER_MS = 140;
   const IO_ROOT_MARGIN = "18% 12% 18% 12%";
   const IO_THRESHOLD = 0.01;
 
   // === LIZARD CHOREO CONTROLS (vw & timing) ===
-  // right offset in vw at each key moment; tweak these to fine-tune X
+  // X positions (as CSS right: vw) — higher number = further LEFT (since we anchor from right)
   const LIZARD_X_VW = {
-    start: 6,     // initial (flipped left)
-    preHalt: 8,   // where it "stops" near the end of the horizontal phase
-    vMid: 2,      // halfway down vertical, go further right
-    vEnd: 6,      // end of vertical, come back
+    start: 6,     // initial (flipped LEFT)
+    preHalt: 8,   // end of horizontal phase (hold)
+    vMid: 40,     // rightmost position during vertical
+    vLeft: -10,   // go left after holding at vMid
+    vEnd: 60,     // final come back
   };
-  const LIZARD_TOP_VH = 2;            // sticky top offset
-  const LIZARD_FLIP_AT_H = 0.18;      // during horizontal: flip from left→right by this progress
-  const LIZARD_H_PRE_WINDOW = 0.22;   // portion of horizontal used to move from start→preHalt
-  const LIZARD_FLIP_AT_V = 0.50;      // during vertical: flip at mid (right→left)
+  const LIZARD_TOP_VH = 2; // sticky top offset
+
+  // Horizontal: flip to face RIGHT early while moving to preHalt, then hold
+  const LIZARD_FLIP_AT_H = 0.18;   // fraction of horizontal progress
+  const LIZARD_H_PRE_WINDOW = 0.22;
+
+  // Vertical easing shape (lower = faster start, higher = slower)
+  const LIZARD_V_START_EXP = 0.85;
+
+  // ► NEW: vertical timeline broken into durations (sum ≈ 1.0)
+  // Slower movements + pauses at each height
+  const LIZARD_V_DUR = {
+    startHold: 0.08,  // pause at start (preHalt)
+    toMid:     0.28,  // move to vMid (slower)
+    midHold:   0.12,  // pause at vMid
+    toLeft:    0.28,  // move to vLeft (slower)
+    leftHold:  0.08,  // pause at vLeft
+    toEnd:     0.16,  // move to vEnd (final, a bit quicker)
+  } as const;
+
+  // Flip point during final return (0..1 of the "toEnd" segment)
+  const LIZARD_V_TOEND_FLIP_FRACTION = 0.35;
 
   // TRANSFORM-BASED "SCROLL"
   const viewportRef = useRef<HTMLElement | null>(null);
@@ -164,8 +183,8 @@ export default function Painpoints() {
   const lizardRef = useRef<HTMLDivElement | null>(null);
 
   // travel extents
-  const FRACTION_X = 1; // ~45% right
-  const FRACTION_Y = 0.85; // ~85% down
+  const FRACTION_X = 1;
+  const FRACTION_Y = 0.85;
 
   // sequencing refs
   type RevealItem = { el: HTMLElement; threshold: number; shown: boolean; groupIndex: number; order: number };
@@ -264,6 +283,7 @@ export default function Painpoints() {
     el.style.transform = `scaleX(${flipped ? -1 : 1})`;
   };
   const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t));
+  const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -272,8 +292,6 @@ export default function Painpoints() {
 
     scroller.style.willChange = "transform";
     lizardRef.current && (lizardRef.current.style.willChange = "transform,right");
-
-    const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const animate = (
       fromX: number,
@@ -327,8 +345,7 @@ export default function Painpoints() {
       // Reset scroller + lizard
       scroller.classList.add("scroller-reset");
       scroller.style.transform = "translate3d(0,0,0)";
-      // lizard starts flipped (facing left) at start X
-      applyLizard(LIZARD_X_VW.start, true);
+      applyLizard(LIZARD_X_VW.start, true); // start flipped LEFT
       await new Promise((r) => requestAnimationFrame(r as any));
 
       buildSequence(scroller, "h");
@@ -346,36 +363,62 @@ export default function Painpoints() {
       const targetX = Math.round(maxX * FRACTION_X);
       const targetY = Math.round(maxY * FRACTION_Y);
 
-      // Horizontal phase — lizard: flip early and move start→preHalt, then hold
+      // Horizontal phase — flip early and move start→preHalt, then hold
       await animate(0, targetX, 0, 0, RIGHT_DURATION_MS, runId, (p) => {
         lastHProgressRef.current = p;
-        // movement window
         if (p <= LIZARD_H_PRE_WINDOW) {
           const t = p / LIZARD_H_PRE_WINDOW;
           const xvw = lerp(LIZARD_X_VW.start, LIZARD_X_VW.preHalt, t);
-          const flipped = p < LIZARD_FLIP_AT_H; // flip to face right after threshold
+          const flipped = p < LIZARD_FLIP_AT_H; // flip to face RIGHT after this threshold
           applyLizard(xvw, flipped);
         } else {
-          // hold at preHalt, facing right
           applyLizard(LIZARD_X_VW.preHalt, false);
         }
         tryRevealAxis("h", p);
       });
 
-      // Vertical phase — lizard: at mid flip again & go more right, then come back
+      // Vertical phase — slower moves + pauses at each height
       await animate(targetX, targetX, 0, targetY, DOWN_DURATION_MS, runId, (p) => {
         lastVProgressRef.current = p;
-        if (p <= LIZARD_FLIP_AT_V) {
-          const t = p / LIZARD_FLIP_AT_V;
-          const xvw = lerp(LIZARD_X_VW.preHalt, LIZARD_X_VW.vMid, t);
-          // first half: facing right
-          applyLizard(xvw, false);
+
+        // progress shape
+        const pv = Math.pow(p, LIZARD_V_START_EXP);
+
+        // cumulative segment thresholds
+        const s0 = LIZARD_V_DUR.startHold;
+        const s1 = s0 + LIZARD_V_DUR.toMid;
+        const s2 = s1 + LIZARD_V_DUR.midHold;
+        const s3 = s2 + LIZARD_V_DUR.toLeft;
+        const s4 = s3 + LIZARD_V_DUR.leftHold;
+        const s5 = s4 + LIZARD_V_DUR.toEnd; // should be ~1
+
+        if (pv <= s0) {
+          // hold at start (preHalt), face RIGHT
+          applyLizard(LIZARD_X_VW.preHalt, false);
+        } else if (pv <= s1) {
+          // move -> vMid (slower)
+          const t = (pv - s0) / (s1 - s0);
+          const xvw = lerp(LIZARD_X_VW.preHalt, LIZARD_X_VW.vMid, easeInOut(t));
+          applyLizard(xvw, false); // face RIGHT
+        } else if (pv <= s2) {
+          // hold at vMid
+          applyLizard(LIZARD_X_VW.vMid, false);
+        } else if (pv <= s3) {
+          // flip & move to vLeft (slower)
+          const t = (pv - s2) / (s3 - s2);
+          const xvw = lerp(LIZARD_X_VW.vMid, LIZARD_X_VW.vLeft, easeInOut(t));
+          applyLizard(xvw, true); // face LEFT
+        } else if (pv <= s4) {
+          // hold at vLeft
+          applyLizard(LIZARD_X_VW.vLeft, true);
         } else {
-          const t = (p - LIZARD_FLIP_AT_V) / (1 - LIZARD_FLIP_AT_V);
-          const xvw = lerp(LIZARD_X_VW.vMid, LIZARD_X_VW.vEnd, t);
-          // second half: flip to face left
-          applyLizard(xvw, true);
+          // move back to vEnd, flip back to RIGHT partway through
+          const t = (pv - s4) / Math.max(1e-6, (s5 - s4));
+          const xvw = lerp(LIZARD_X_VW.vLeft, LIZARD_X_VW.vEnd, easeInOut(t));
+          const flippedRight = t >= LIZARD_V_TOEND_FLIP_FRACTION;
+          applyLizard(xvw, !flippedRight);
         }
+
         tryRevealAxis("v", p);
       });
     };
@@ -429,7 +472,7 @@ export default function Painpoints() {
         className="absolute z-30 pointer-events-none select-none"
         style={{
           right: `${LIZARD_X_VW.start}vw`,
-          top: `${LIZARD_TOP_VH}vh`,
+          top: `2vh`,
           width: "clamp(300px,28vw,520px)",
           height: "clamp(300px,28vw,520px)",
           filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.35))",
