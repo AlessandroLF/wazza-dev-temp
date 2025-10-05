@@ -1,41 +1,53 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const BG = "#0B3F3B";
 const ACCENT = "#D9FF5B";
 
 // assets
-const IMG_BACK = "/founders/image-107.png";
+const IMG_BACK  = "/founders/image-107.png";
 const IMG_PHOTO = "/founders/image-105.png";
 const IMG_FRAME = "/founders/image-106.svg";
 const DIVIDER   = "/founders/Vector-11.svg";
 const BULLET    = "/founders/bullet.svg";
 
-// --- auto-scroll tuning ---
-const SCROLL_PX_PER_SEC = 140; // fast per your tweak
-const DWELL_MS = 2500;         // pause at top/bottom before bouncing
+// --- auto-scroll tuning (desktop/tablet only) ---
+const SCROLL_PX_PER_SEC = 140;
+const DWELL_MS = 2500;
 
 export default function Founders() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const webglHostRef = useRef<HTMLDivElement | null>(null);
   const hoveringRef = useRef(false);
 
+  // mobile detection (<= 768px)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const prefersReduced = useMemo(
-    () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
     []
   );
 
-  /** Continuous auto-scroll with hover pause + top/bottom dwell */
+  /** Continuous auto-scroll with hover pause + dwell (disabled on mobile) */
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    if (isMobile) return; // 🔕 disable entire mechanism on mobile
 
     let raf = 0;
     let last = performance.now();
-    let dir: 1 | -1 = 1;    // 1 = down, -1 = up
-    let holdEnd = 0;        // timestamp until which we dwell
-    let edge: -1 | 0 | 1 = 0; // -1 top, 1 bottom, 0 none
+    let dir: 1 | -1 = 1; // 1 = down, -1 = up
+    let holdEnd = 0;
+    let edge: -1 | 0 | 1 = 0;
 
     const step = (t: number) => {
       raf = requestAnimationFrame(step);
@@ -46,8 +58,8 @@ export default function Founders() {
       const dt = t - last;
       last = t;
 
-      if (hoveringRef.current) return; // pause while hovering
-      if (t < holdEnd) return;         // dwell time active
+      if (hoveringRef.current) return;
+      if (t < holdEnd) return;
 
       const eps = 2;
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - eps;
@@ -69,7 +81,10 @@ export default function Founders() {
       }
       if (!atTop && !atBottom) edge = 0;
 
-      const delta = Math.min((SCROLL_PX_PER_SEC * dt) / 1000, el.clientHeight * 0.02);
+      const delta = Math.min(
+        (SCROLL_PX_PER_SEC * dt) / 1000,
+        el.clientHeight * 0.02
+      );
       el.scrollTop += dir * delta;
     };
 
@@ -77,9 +92,9 @@ export default function Founders() {
     raf = requestAnimationFrame(step);
 
     return () => cancelAnimationFrame(raf);
-  }, [prefersReduced]);
+  }, [prefersReduced, isMobile]);
 
-  /** Subtle Three.js lime glow behind the right column (optional) */
+  /** Subtle Three.js lime glow behind the right column (hidden on mobile) */
   useEffect(() => {
     let mounted = true;
     let renderer: any, scene: any, camera: any, mesh: any, raf = 0;
@@ -162,59 +177,62 @@ export default function Founders() {
   }, []);
 
   return (
-    <section className="relative w-screen overflow-hidden" style={{ backgroundColor: BG }}>
-      {/* Full-height row; md+ = 2 columns, mobile = single scroll pane */}
-      <div className="relative h-[100svh] min-h-0 px-[4vw] py-[6vh] flex flex-col md:flex-row md:items-stretch md:gap-12 overflow-hidden">
+    <section
+      className="relative w-screen overflow-visible md:overflow-hidden"
+      style={{ backgroundColor: BG }}
+    >
+      {/* Full-height row; md+ = 2 columns, mobile = single column (no nested scroll) */}
+      <div className="relative md:h-[100svh] min-h-[100svh] px-[4vw] py-[6vh] flex flex-col md:flex-row md:items-stretch md:gap-12">
         {/* LEFT (desktop/tablet only) — title + wobble stack */}
         <div className="hidden md:flex md:basis-[44%] flex-col shrink-0">
-          <h3 className="mb-10 font-display font-extrabold leading-[0.98] text-white text-[clamp(40px,6vw,82px)]">
+          <h3 className="mb-10 font-display font-extrabold leading-[0.98] text-white text-[clamp(36px,5.4vw,74px)]">
             <span className="block">Meet</span>
             <span className="block">Wazzap</span>
             <span className="block" style={{ color: ACCENT }}>Founders</span>
           </h3>
 
-          <div className="relative" style={{ width: "clamp(300px,38vw,580px)", height: "clamp(210px,28vw,380px)" }} aria-hidden>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+          <div
+            className="relative"
+            style={{ width: "clamp(300px,38vw,560px)", height: "clamp(210px,27.5vw,360px)" }}
+            aria-hidden
+          >
             <img src={IMG_BACK}  alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-1 -rotate-3 translate-x-[-2%] translate-y-[2%] drop-shadow-[0_16px_40px_rgba(0,0,0,0.35)]" draggable={false}/>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={IMG_PHOTO} alt="" className="absolute inset-0 m-auto h-[92%] w-auto select-none wobble-2 rotate-[1.5deg] drop-shadow-[0_20px_60px_rgba(0,0,0,0.35)]" draggable={false}/>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={IMG_FRAME} alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-3 rotate-[3deg] translate-x-[1%] -translate-y-[2%] drop-shadow-[0_14px_36px_rgba(0,0,0,0.30)]" draggable={false}/>
           </div>
         </div>
 
-        {/* RIGHT — scroll pane (also hosts MOBILE title/stack at the top) */}
-        <div className="relative md:basis-[56%] min-h-0 h-full flex">
-          {/* subtle glow backdrop */}
-          <div ref={webglHostRef} className="pointer-events-none absolute inset-0 z-0" />
-          {/* scrollable content */}
+        {/* RIGHT — scroll pane (desktop only); on mobile, it becomes a normal flow container */}
+        <div className="relative md:basis-[56%] md:min-h-0 md:h-full flex">
+          {/* subtle glow backdrop (hide on mobile) */}
+          <div ref={webglHostRef} className="pointer-events-none absolute inset-0 z-0 hidden md:block" />
+          {/* content */}
           <div
             ref={scrollRef}
-            className="relative z-10 flex-1 overflow-y-auto overscroll-contain pr-4 scrollbar-hide"
-            onMouseEnter={() => (hoveringRef.current = true)}
-            onMouseLeave={() => (hoveringRef.current = false)}
+            className={`relative z-10 flex-1 pr-4 ${
+              isMobile ? "overflow-visible" : "overflow-y-auto overscroll-contain scrollbar-hide"
+            }`}
+            onMouseEnter={!isMobile ? () => (hoveringRef.current = true) : undefined}
+            onMouseLeave={!isMobile ? () => (hoveringRef.current = false) : undefined}
           >
             {/* MOBILE-ONLY: left column content moved to top */}
             <div className="md:hidden mb-10">
-              <h3 className="mb-6 font-display font-extrabold leading-[0.98] text-white text-[clamp(36px,8vw,64px)]">
+              <h3 className="mb-6 font-display font-extrabold leading-[0.98] text-white text-[clamp(30px,7vw,56px)]">
                 <span className="block">Meet</span>
                 <span className="block">Wazzap</span>
                 <span className="block" style={{ color: ACCENT }}>Founders</span>
               </h3>
-              <div className="relative mx-auto" style={{ width: "min(92%, 520px)", height: "min(60vw, 320px)" }} aria-hidden>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+              <div className="relative mx-auto" style={{ width: "min(92%, 520px)", height: "min(62vw, 300px)" }} aria-hidden>
                 <img src={IMG_BACK}  alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-1 -rotate-3 translate-x-[-2%] translate-y-[2%] drop-shadow-[0_16px_40px_rgba(0,0,0,0.35)]" draggable={false}/>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={IMG_PHOTO} alt="" className="absolute inset-0 m-auto h-[92%] w-auto select-none wobble-2 rotate-[1.5deg] drop-shadow-[0_20px_60px_rgba(0,0,0,0.35)]" draggable={false}/>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={IMG_FRAME} alt="" className="absolute inset-0 m-auto h-full w-auto select-none wobble-3 rotate-[3deg] translate-x-[1%] -translate-y-[2%] drop-shadow-[0_14px_36px_rgba(0,0,0,0.30)]" draggable={false}/>
               </div>
             </div>
 
-            {/* main right content (unchanged) */}
-            <div className="space-y-20 md:space-y-24 lg:space-y-28">
+            {/* main right content */}
+            <div className="space-y-16 md:space-y-24 lg:space-y-28">
               {/* Intro */}
-              <div className="text-white/90 font-semibold text-[clamp(18px,1.6vw,24px)] leading-snug max-w-[74ch]">
+              <div className="text-white/90 font-semibold text-[clamp(16px,3.6vw,20px)] md:text-[clamp(18px,1.6vw,24px)] leading-snug max-w-[74ch]">
                 <span className="block">
                   <a href="https://wazzap.mx" target="_blank" className="underline">Wazzap.mx</a> is led by two Mexican partners, we
                 </span>
@@ -226,36 +244,35 @@ export default function Founders() {
               </div>
 
               {/* Nair */}
-              <div className="space-y-8">
-                <h4 className="font-extrabold text-white text-[clamp(24px,2.2vw,30px)] leading-tight max-w-[74ch]">
+              <div className="space-y-6 md:space-y-8">
+                <h4 className="font-extrabold text-white text-[clamp(20px,5vw,26px)] md:text-[clamp(24px,2.2vw,30px)] leading-tight max-w-[74ch]">
                   <span className="block" style={{ color: ACCENT }}>Nair:</span>
-                  <span className="block">Founder of the 🍕 PiSaaS Academy,  empowering Latin</span>
+                  <span className="block">Founder of the 🍕 PiSaaS Academy, empowering Latin</span>
                   <span className="block">people to effectively use High-level.</span>
                 </h4>
-                <ul className="grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-x-16 md:gap-y-12 max-w-[76ch]">
+                <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-x-16 md:gap-y-12 max-w-[76ch]">
                   <Bullet>Winner of the High-level Affillionaire Award and Tesla Electric Vehicle gifted by GHL.</Bullet>
                   <Bullet>Known as the <a href="https://www.youtube.com/@gohighlevelwizard" target="_blank" className="underline">@gohighlevelwizard</a> on YouTube, sharing valuable insights and interviews.</Bullet>
                 </ul>
               </div>
 
               {/* Divider */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={DIVIDER} alt="" className="w-full h-[14px] object-cover" style={{ objectPosition: "left center" }} draggable={false}/>
+              <img src={DIVIDER} alt="" className="w-full h-[12px] md:h-[14px] object-cover" style={{ objectPosition: "left center" }} draggable={false}/>
 
               {/* Miguel */}
-              <div className="space-y-8">
-                <h4 className="font-extrabold text-white text-[clamp(24px,2.2vw,30px)] leading-tight max-w-[74ch]">
+              <div className="space-y-6 md:space-y-8">
+                <h4 className="font-extrabold text-white text-[clamp(20px,5vw,26px)] md:text-[clamp(24px,2.2vw,30px)] leading-tight max-w-[74ch]">
                   <span className="block" style={{ color: ACCENT }}>Miguel:</span>
                   <span className="block">The Brain Behind Wazzap.mx, an Expert Developer</span>
                   <span className="block">and Crypto Enthusiast</span>
                 </h4>
-                <ul className="grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-x-16 md:gap-y-12 max-w-[76ch]">
+                <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-x-16 md:gap-y-12 max-w-[76ch]">
                   <Bullet>He is recognized as a super developer, known for his ability to create innovative solutions in record time.</Bullet>
                   <Bullet>As a crypto enthusiast, Miguel stays updated with the latest trends and technologies in the software world.</Bullet>
                 </ul>
               </div>
 
-              <div className="h-10" />
+              <div className="h-6 md:h-10" />
             </div>
           </div>
         </div>
@@ -285,9 +302,8 @@ export default function Founders() {
 
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-3 text-white/90 text-[clamp(18px,1.4vw,22px)] leading-snug font-semibold">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={BULLET} alt="" className="mt-[4px] h-[15px] w-[15px] shrink-0" draggable={false} />
+    <li className="flex items-start gap-3 text-white/90 text-[clamp(15px,3.6vw,18px)] md:text-[clamp(18px,1.4vw,22px)] leading-snug font-semibold">
+      <img src={BULLET} alt="" className="mt-[2px] h-[14px] w-[14px] md:h-[15px] md:w-[15px] shrink-0" draggable={false} />
       <span className="block">{children}</span>
     </li>
   );
