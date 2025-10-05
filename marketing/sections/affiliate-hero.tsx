@@ -25,12 +25,7 @@ export default function AffiliateHero() {
       style={{ backgroundColor: BG, minHeight: "100svh", padding: `${TOP_PAD_VH}vh 0 ${BOTTOM_PAD_VH}vh` }}
       aria-label="Affiliate program hero"
     >
-      {/* Header with side padding so it doesn't hug the edges */}
-      <div className="absolute inset-x-0 top-0 z-40">
-        <div className="mx-auto w-full px-[3vw] md:px-[4vw]">
-          <Header />
-        </div>
-      </div>
+      
 
       {/* Plus accent near the headline */}
       <img
