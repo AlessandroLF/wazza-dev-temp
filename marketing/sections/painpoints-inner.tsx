@@ -66,6 +66,15 @@ export default function Painpoints() {
   const [svgHTML, setSvgHTML] = useState<string | null>(null);
   const [svgWH, setSvgWH] = useState<{ w: number; h: number } | null>(null);
 
+  // Detect mobile to disable all animations there
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   useEffect(() => {
     let aborted = false;
     (async () => {
@@ -132,53 +141,46 @@ export default function Painpoints() {
     { primary: "/painpoints/5.svg", fallback: "/5.svg", title: ["Works only with", "approved business", "numbers"] },
   ];
 
-  // --- visuals you had ---
+  const STEPS: Array<{ iconPrimary: string; iconFallback: string; title: string; copy: string }> = [
+    { iconPrimary: "/steps/2.svg", iconFallback: "/steps/2.svg", title: "Connect Your Automation Tool", copy: "Integrate with your favorite CRM instantly, without coding or complex setups." },
+    { iconPrimary: "/steps/1.svg", iconFallback: "/steps/1.svg", title: "Scan QR Code", copy: "Easily link any WhatsApp number in seconds — no approval required." },
+    { iconPrimary: "/steps/3.svg", iconFallback: "/steps/3.svg", title: "Start Sending Messages", copy: "Send unlimited messages, template buttons, and voice replies — all from one dashboard." },
+  ];
+
+  // --- visuals you had (desktop) ---
   const LINE_NUDGE_PX = -6;
   const SHIFT_VH = 5;
   const LINE_SCALE_Y = 0.4;
 
-  // === SPEED CONTROLS ===
+  // === SPEED CONTROLS (desktop only) ===
   const RIGHT_DURATION_MS = 5200;
   const DOWN_DURATION_MS = 5200;
 
-  // === REVEAL BEHAVIOR CONTROLS ===
+  // === REVEAL BEHAVIOR CONTROLS (desktop only) ===
   const REVEAL_EARLY = 0.25;
   const GROUP_STAGGER_MS = 140;
   const IO_ROOT_MARGIN = "18% 12% 18% 12%";
   const IO_THRESHOLD = 0.01;
 
-  // === LIZARD CHOREO CONTROLS (vw & timing) ===
-  // X positions (as CSS right: vw) — higher number = further LEFT (we anchor from right)
-  const LIZARD_X_VW = {
-    start: 6,
-    preHalt: 8,
-    vMid: 40,
-    vLeft: -10,
-    vEnd: 60,
-  };
+  // === LIZARD CHOREO CONTROLS (desktop only) ===
+  const LIZARD_X_VW = { start: 6, preHalt: 8, vMid: 40, vLeft: -10, vEnd: 60 };
   const LIZARD_TOP_VH = 2;
-
   const LIZARD_FLIP_AT_H = 0.18;
   const LIZARD_H_PRE_WINDOW = 0.22;
-
   const LIZARD_V_START_EXP = 0.6;
   const LIZARD_VMID_ARRIVE = 0.24;
   const LIZARD_VMID_HOLD = 0.3;
   const LIZARD_V_LEFT_REACH = 0.68;
   const LIZARD_V_BACK_FLIP = 0.78;
 
-  // TRANSFORM-BASED "SCROLL"
+  // TRANSFORM-BASED "SCROLL" (desktop only)
   const viewportRef = useRef<HTMLElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-
-  // sticky lizard ref
   const lizardRef = useRef<HTMLDivElement | null>(null);
 
-  // travel extents (as accepted earlier)
   const FRACTION_X = 1;
   const FRACTION_Y = 0.85;
 
-  // sequencing refs
   type RevealItem = { el: HTMLElement; threshold: number; shown: boolean; groupIndex: number; order: number };
   const hSeqRef = useRef<RevealItem[]>([]);
   const vSeqRef = useRef<RevealItem[]>([]);
@@ -188,10 +190,7 @@ export default function Painpoints() {
   const vGroupsRef = useRef<Map<number, RevealItem[]>>(new Map());
   const hGroupShownRef = useRef<boolean[]>([]);
   const vGroupShownRef = useRef<boolean[]>([]);
-
   const runIdRef = useRef(0);
-
-  // intersection gating
   const intersectingRef = useRef(new Map<HTMLElement, boolean>());
   const lastHProgressRef = useRef(0);
   const lastVProgressRef = useRef(0);
@@ -202,7 +201,7 @@ export default function Painpoints() {
     list.sort((a, b) => {
       const ao = parseFloat(a.dataset.order || "0");
       const bo = parseFloat(b.dataset.order || "0");
-      return ao === bo ? 0 : ao - bo;
+      return ao - bo;
     });
 
     const orders = list.map((el) => parseFloat(el.dataset.order || "0"));
@@ -247,7 +246,6 @@ export default function Painpoints() {
     const shown = axis === "h" ? hGroupShownRef.current : vGroupShownRef.current;
     const thresholds = axis === "h" ? hGroupThresholdsRef.current : vGroupThresholdsRef.current;
     const adjustedProgress = Math.min(1, Math.max(0, progress + REVEAL_EARLY));
-
     thresholds.forEach((th, gi) => {
       if (shown[gi]) return;
       if (adjustedProgress >= th) {
@@ -267,7 +265,6 @@ export default function Painpoints() {
     });
   }
 
-  // --- Lizard choreo helpers ---
   const applyLizard = (xVW: number, flipped: boolean) => {
     const el = lizardRef.current;
     if (!el) return;
@@ -277,6 +274,8 @@ export default function Painpoints() {
   const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t));
 
   useEffect(() => {
+    if (isMobile) return; // <-- nothing runs on mobile
+
     const viewport = viewportRef.current;
     const scroller = scrollerRef.current;
     if (!viewport || !scroller) return;
@@ -311,11 +310,9 @@ export default function Painpoints() {
         requestAnimationFrame(step);
       });
 
-    // Per-element IO for reveal
     const setupPerElementIO = () => {
       perElIORef.current?.disconnect();
       intersectingRef.current.clear();
-
       const els = Array.from(scroller.querySelectorAll<HTMLElement>("[data-reveal]"));
       const io = new IntersectionObserver(
         (entries) => {
@@ -334,8 +331,6 @@ export default function Painpoints() {
 
     const startRun = async () => {
       const runId = ++runIdRef.current;
-
-      // Reset scroller + lizard
       scroller.classList.add("scroller-reset");
       scroller.style.transform = "translate3d(0,0,0)";
       applyLizard(LIZARD_X_VW.start, true);
@@ -352,11 +347,9 @@ export default function Painpoints() {
 
       const maxX = Math.max(0, scroller.scrollWidth - viewport.clientWidth);
       const maxY = Math.max(0, scroller.scrollHeight - viewport.clientHeight);
-
       const targetX = Math.round(maxX * FRACTION_X);
       const targetY = Math.round(maxY * FRACTION_Y);
 
-      // Horizontal phase
       await animate(0, targetX, 0, 0, RIGHT_DURATION_MS, runId, (p) => {
         lastHProgressRef.current = p;
         if (p <= LIZARD_H_PRE_WINDOW) {
@@ -370,7 +363,6 @@ export default function Painpoints() {
         tryRevealAxis("h", p);
       });
 
-      // Vertical phase
       await animate(targetX, targetX, 0, targetY, DOWN_DURATION_MS, runId, (p) => {
         lastVProgressRef.current = p;
 
@@ -411,7 +403,6 @@ export default function Painpoints() {
     );
     io.observe(viewport);
 
-    // initial run
     startRun();
 
     return () => {
@@ -419,9 +410,9 @@ export default function Painpoints() {
       perElIORef.current?.disconnect();
       ++runIdRef.current;
     };
-  }, [panelWidthPx]);
+  }, [panelWidthPx, isMobile]);
 
-  // gradient style (inline — avoids styled-jsx nesting)
+  // brand gradient inline style
   const brandGradientStyle: React.CSSProperties = {
     color: "transparent",
     backgroundImage:
@@ -431,6 +422,128 @@ export default function Painpoints() {
     textShadow: "0 0 10px rgba(122,255,130,0.12)",
   };
 
+  // ======== MOBILE: static stack, no animations ========
+  if (isMobile) {
+    return (
+      <section
+        id="painpoints"
+        className="w-screen bg-[#0B3F3B] text-white"
+        style={{ padding: "24px 16px 0 16px" }}
+      >
+        {/* Top Title */}
+        <h2 className="font-display font-extrabold leading-[1.05] tracking-[-0.01em] text-[22px] mb-5">
+          <span className="block">The Problem With</span>
+          <span className="block">the WhatsApp API</span>
+        </h2>
+
+        {/* Pain points list */}
+        {/* Pain points — formatted like the Steps (centered blocks) */}
+<div className="space-y-9 px-2 mb-8">
+  {ICONS.map((it, i) => (
+    <div key={i} className="text-center">
+      <div className="mb-3 flex justify-center">
+        <img
+          src={it.primary}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = it.fallback;
+          }}
+          alt=""
+          className="w-[42px] h-[42px]"
+          draggable={false}
+        />
+      </div>
+
+      {/* Title lines, styled like the step titles */}
+      <div className="font-display font-extrabold text-[16px] leading-tight">
+        {it.title.map((line, k) => (
+          <span key={k} className="block">
+            {line}
+          </span>
+        ))}
+      </div>
+    </div>
+  ))}
+</div>
+
+
+        {/* Lizard image (static) */}
+        <div className="w-full flex justify-center my-5">
+          <img
+            src="/painpoints/lizard.png"
+            alt=""
+            className="w-[180px] h-[180px]"
+            draggable={false}
+          />
+        </div>
+
+        {/* Gradient heading */}
+        <h3 className="font-display font-extrabold text-center leading-[1.05] tracking-[-0.01em] text-[24px] mb-6">
+          <span className="block" style={brandGradientStyle}>
+            Connect any
+          </span>
+          <span className="block" style={brandGradientStyle}>
+            WhatsApp in
+          </span>
+          <span className="block" style={brandGradientStyle}>
+            3 Simple Steps
+          </span>
+        </h3>
+
+        {/* Steps */}
+        <div className="space-y-9 px-2">
+          {STEPS.map((s, i) => (
+            <div key={i} className="text-center">
+              <div className="mb-3 flex justify-center">
+                <img
+                  src={s.iconPrimary}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = s.iconFallback;
+                  }}
+                  alt=""
+                  className="w-[42px] h-[42px]"
+                  draggable={false}
+                />
+              </div>
+              <div className="font-display font-extrabold text-[16px] mb-2">
+                {s.title}
+              </div>
+              <p className="text-white/90 text-[14px] leading-snug max-w-[300px] mx-auto">
+                {s.copy}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Explicit bottom text (the one that was missing) */}
+        <p className="text-center text-white/90 text-[14px] leading-snug max-w-[320px] mx-auto mt-6 px-2">
+          Send unlimited messages, no template restrictions, no 24hr rule, add
+          bots, reminders, and voice replies — all from one dashboard.
+        </p>
+
+        {/* Cropped jagged bottom — show the TOP jagged edge */}
+        <div
+          className="relative w-screen left-1/2 -translate-x-1/2 mt-8 overflow-hidden"
+          style={{
+            height: "12vh",        // visible area
+            maxHeight: 160,
+          }}
+        >
+          <img
+            src="/steps/background-bg.svg"
+            alt=""
+            draggable={false}
+            className="absolute top-0 left-0 w-full select-none"
+            style={{
+              height: "24vh",      // render taller than container
+              maxHeight: 320,      // so the container shows roughly the TOP half
+            }}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  // ======== DESKTOP/TABLET (animated) ========
   return (
     <section
       ref={viewportRef as any}
@@ -522,7 +635,7 @@ export default function Painpoints() {
               </div>
             </div>
 
-            {/* Rightmost headline — order 6 (brand gradient applied inline) */}
+            {/* Rightmost headline — order 6 (brand gradient) */}
             <div data-reveal data-reveal-axis="h" data-order="6" className="absolute right-[4vw] top-[9vh] z-20">
               <h3 className="font-display font-extrabold leading-[1.02] tracking-[-0.01em] text-[clamp(20px,2.6vw,38px)] text-right">
                 <span className="block" style={brandGradientStyle}>
@@ -568,27 +681,22 @@ export default function Painpoints() {
   );
 }
 
-/* ---------- FINAL StepsPanel (your values) + sequenced vertical reveals ---------- */
+/* ---------- FINAL StepsPanel (your values) + sequenced vertical reveals) ---------- */
 function StepsPanel() {
-  // ---- controls (yours — unchanged) ----
   const LINE_NUDGE_PX = -6;
   const SHIFT_VH = 0;
   const PLUS_SIZE_PX = 34;
 
-  // panel/rope sizing
   const PANEL_VH = 180;
   const ROPE_HEIGHT_PCT = 75;
   const ROPE_OVERFLOW_TOP_PX = -458;
 
-  // horizontal alignment
   const ROPE_X_OFFSET_PX = 80;
   const MARKER_X_PX = [265, 255, 300];
 
-  // vertical positions
   const STEP_Y = [0, 43, 81];
   const TEXT_OFFSET_VH = [0, 0, 10];
 
-  // per-step X nudges for the text blocks (px)
   const TEXT_X_PX = [0, 500, 370];
 
   const STEPS: Array<{
@@ -605,7 +713,6 @@ function StepsPanel() {
   return (
     <section id="steps" className="relative w-full bg-[#0B3F3B] overflow-visible" style={{ minHeight: `${PANEL_VH}vh` }}>
       <div className="relative w-full px-0 overflow-visible" style={{ height: `${PANEL_VH}vh` }}>
-        {/* Steps rope (v order 0) */}
         <img
           data-reveal
           data-reveal-axis="v"
@@ -623,7 +730,6 @@ function StepsPanel() {
           }}
         />
 
-        {/* Markers (1,3,5) */}
         {STEP_Y.map((y, i) => (
           <img
             key={`marker-${i}`}
@@ -645,7 +751,6 @@ function StepsPanel() {
           />
         ))}
 
-        {/* Texts (2,4,6) */}
         {STEPS.map((s, i) => {
           const y = STEP_Y[i] + SHIFT_VH + (TEXT_OFFSET_VH[i] ?? 0);
           const x = TEXT_X_PX[i] ?? 0;
@@ -655,11 +760,7 @@ function StepsPanel() {
           const pCls = "mt-2 text-white/90 text-[clamp(12px,1.1vw,14px)]";
 
           const sidePosition =
-            s.side === "left"
-              ? "left-[8vw] text-left"
-              : s.side === "right"
-              ? "right-[8vw] text-right"
-              : "left-1/2 -translate-x-1/2 text-center";
+            s.side === "left" ? "left-[8vw] text-left" : s.side === "right" ? "right-[8vw] text-right" : "left-1/2 -translate-x-1/2 text-center";
 
           return (
             <div
@@ -672,12 +773,7 @@ function StepsPanel() {
             >
               <div style={{ transform: `translateX(${x}px)` }}>
                 <div className="mb-3 inline-flex items-center gap-3">
-                  <img
-                    src={s.icon}
-                    alt=""
-                    className="h-[clamp(36px,3vw,56px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
-                    draggable={false}
-                  />
+                  <img src={s.icon} alt="" className="h-[clamp(36px,3vw,56px)] w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]" draggable={false} />
                   <span className="sr-only">{s.title}</span>
                 </div>
 
@@ -688,7 +784,6 @@ function StepsPanel() {
           );
         })}
 
-        {/* Bottom jagged background (7) */}
         <img
           data-reveal
           data-reveal-axis="v"
