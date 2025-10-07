@@ -1,71 +1,82 @@
 "use client";
 
-import PillButton from "./pill-button";
-import Header from "./header";
-
-/**
- * Affiliate Hero – header padding + fruits image
- */
-
-// -------- Controls --------
-const BG = "#0B3F3B";
-const ACCENT = "#D9FF5B";
-const TOP_PAD_VH = 12;
-const BOTTOM_PAD_VH = 14;
-
-// Fruits placement
-const FRUITS_WIDTH = "80vw"; // e.g. 80vw per your note
-const FRUITS_BOTTOM_VH = 10; // distance from the bottom bg
+import React from "react";
 
 export default function AffiliateHero() {
+  const brandGradient: React.CSSProperties = {
+    color: "transparent",
+    backgroundImage:
+      "linear-gradient(90deg,#EAFF4F 0%,#CFFF58 35%,#7FF083 70%,#55E0A0 100%)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    textShadow: "0 0 10px rgba(122,255,130,0.12)",
+  };
+
   return (
-    <section
-      id="affiliate"
-      className="relative w-screen overflow-hidden flex items-center"
-      style={{ backgroundColor: BG, minHeight: "100svh", padding: `${TOP_PAD_VH}vh 0 ${BOTTOM_PAD_VH}vh` }}
-      aria-label="Affiliate program hero"
-    >
-      
-
-      {/* Plus accent near the headline */}
-      <img
-        src="/plus2.svg"
-        alt=""
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 select-none z-20"
-        style={{ top: "18vh", width: "clamp(56px,7vw,120px)", filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.35))" }}
-      />
-
+    <section id="affiliate-hero" className="relative overflow-hidden bg-[#0B3F3B]">
       {/* Content */}
-      <div className="relative z-30 mx-auto max-w-[1100px] px-[4vw] text-center">
-        <h1 className="font-display font-extrabold leading-[1.05] text-white text-[clamp(28px,5vw,64px)]">
-          Join Our <span style={{ color: ACCENT }}>Affiliate Program</span>
-        </h1>
+      <div className="mx-auto max-w-[1000px] px-6 pt-[10vh] pb-[22vh] text-center md:pb-[24vh]">
+        <h2 className="font-display text-[clamp(26px,5.2vw,56px)] font-extrabold leading-[1.05] tracking-[-0.01em] text-white">
+          <span className="mr-2">Join Our</span>
+          <span style={brandGradient}>Affiliate Program</span>
+        </h2>
 
-        <p className="mx-auto mt-4 max-w-[780px] text-white/90 text-[clamp(16px,1.8vw,20px)] leading-snug">
-          <span className="block">Earn 25% per new referred user,</span>
-          <span className="block">recurring commission. The affiliate program</span>
-          <span className="block">is exclusive to our clients.</span>
+        <p className="mx-auto mt-5 max-w-[680px] text-[clamp(14px,2.1vw,18px)] leading-snug text-white/90">
+          Earn 25% per new referred user, recurring commission. The affiliate
+          program is exclusive to our clients.
         </p>
 
-        <div className="mt-6 md:mt-8 flex justify-center">
-          <PillButton>Apply Now!</PillButton>
+        {/* CTA */}
+        <div className="mt-7 flex items-center justify-center">
+          <a
+            href="#"
+            className="group inline-flex items-center gap-3 rounded-full bg-[#E8FE60] px-6 py-3 font-display text-[clamp(14px,2.2vw,18px)] font-semibold text-[#073733] shadow-[0_10px_35px_rgba(0,0,0,0.25)] transition-transform active:scale-[0.98]"
+          >
+            Apply Now!
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#133F39] text-white transition-transform group-hover:translate-x-[2px]">
+              ▶
+            </span>
+          </a>
         </div>
       </div>
 
-      {/* Fruits image (behind bottom bg) */}
+      {/* Fruit image — sits behind the jagged bottom */}
       <img
         src="/Layer11.png"
         alt=""
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 select-none z-20"
-        style={{ bottom: `${FRUITS_BOTTOM_VH}vh`, width: FRUITS_WIDTH }}
+        className={`
+          fruits pointer-events-none absolute left-1/2 -translate-x-1/2 select-none
+          z-[10]
+          w-[95vw] max-w-[680px]
+          md:w-[58vw] md:max-w-[920px]
+        `}
       />
 
-      {/* Bottom jagged background (on top of fruits) */}
+      {/* Jagged bottom — on top */}
       <img
         src="/bottom-bg.svg"
         alt=""
-        className="pointer-events-none absolute bottom-0 left-0 w-full select-none z-40"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[60] w-full select-none"
       />
+
+      {/* Floor to prevent teal showing below jagged on tall screens */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 -bottom-px h-[6vh] bg-[#EBF6F6] z-[5] md:h-[8vh]"
+      />
+
+      <style jsx>{`
+        /* Mobile: fruit just above the jagged edge (behind it) */
+        .fruits {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2vh);
+        }
+        /* Desktop: fruit larger and closer to jagged (peek) */
+        @media (min-width: 768px) {
+          .fruits {
+            bottom: 4.5vh;
+          }
+        }
+      `}</style>
     </section>
   );
 }

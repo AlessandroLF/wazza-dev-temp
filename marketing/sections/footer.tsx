@@ -1,81 +1,63 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
+// Brand colors
 const BG = "#0B3F3B";
-const FLOWER_SRC = "/image-108.png";   // must exist in /public
-const BOTTOM_BG  = "/bottom-bg-2.svg"; // must exist in /public
+// Light fill that matches the jagged SVG background (tweak if yours differs)
+const JAGGED_BG = "#EBF6F6";
 
-// ---- easy tuning ----
-const MOBILE_HEIGHT_VH  = 20;  // how tall the flower stage is on mobile
-const MOBILE_SHIFT_VH   = 30;  // push DOWN on mobile (increase to lower more)
-const DESKTOP_SHIFT_VH  = -6;  // your desktop value that looked good (up is negative)
-// ----------------------
-const BOTTOM_BG_RISE_VH_MOBILE  = 5;  // e.g., 0–12
-const BOTTOM_BG_RISE_VH_DESKTOP = 3;
+// Assets
+const FLOWER_SRC = "/image-108.png";   // adjust if needed
+const JAGGED_SRC = "/bottom-bg-2.svg"; // adjust if needed
+
+// ====== TUNING ======
+// (mobile)
+const FLOWER_W_MOBILE_VW  = 86;
+const MOBILE_STAGE_H_VH   = 10; // container height
+const MOBILE_STAGE_MAX    = 340;
+const MOBILE_STAGE_SHIFT  = 18; // push DOWN so it sits nearer the jagged
+const JAGGED_RISE_MOBILE  = 6;  // lift jagged to overlap the flower a bit
+const FLOOR_MOBILE_H      = 6; // smaller floor
+// (desktop – unchanged)
+const FLOWER_W_DESKTOP_VW = 75;
+const DESKTOP_STAGE_H_VH  = 32;
+const DESKTOP_STAGE_MAX   = 520;
+const DESKTOP_STAGE_SHIFT = 12;
+const JAGGED_RISE_DESKTOP = 6;
+const FLOOR_DESKTOP_H     = 30;
+// =====================
 
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative w-screen overflow-hidden" style={{ backgroundColor: BG }}>
-      {/* Scene */}
-      <div className="relative mx-auto max-w-[1600px] px-[4vw] pt-[8vh] pb-[24vh]">
-        {/* Flower wrapper */}
-        <div
-          className="relative mx-auto pointer-events-none w-[90vw] max-w-[1400px] md:h-[min(30vh,50px)] z-0"
-          style={{
-            height: `min(${MOBILE_HEIGHT_VH}vh, 300px)`,
-            transform: `translateY(${MOBILE_SHIFT_VH}vh)`,
-          }}
-        >
-          {/* Desktop keeps your original -6vh nudge */}
-          <style>{`
-            @media (min-width: 768px) {
-              .footer-shift-desktop {
-                transform: translateY(${DESKTOP_SHIFT_VH}vh);
-              }
-            }
-          `}</style>
-          <div className="footer-shift-desktop absolute inset-0">
-            {/* Base image (always visible) — anchor to bottom to avoid teal gap */}
-            <img
-              src={FLOWER_SRC}
-              alt=""
-              className="absolute inset-0 h-full w-full select-none object-contain object-bottom"
-              draggable={false}
-            />
-
-            {/* Breeze overlay (desktop only) */}
-            <div className="hidden md:block">
-              <BreezyOverlay src={FLOWER_SRC} />
-            </div>
-          </div>
+    <footer className="relative w-screen overflow-visible" style={{ backgroundColor: BG }}>
+      {/* wrapper – reduced paddings on mobile to close the gap */}
+      <div className="relative mx-auto max-w-[1600px] px-[4vw] pt-[4vh] pb-[14vh] md:pt-[8vh] md:pb-[24vh]">
+        {/* Flower stage (below jagged, above floor) */}
+        <div className="footer-stage relative mx-auto w-[92vw] max-w-[1400px] z-[3] pointer-events-none">
+          <img
+            src={FLOWER_SRC}
+            alt=""
+            draggable={false}
+            className="flower-img absolute bottom-0 left-1/2 z-[3] select-none object-contain"
+          />
         </div>
       </div>
 
-      <style>{`
-  @media (min-width: 768px) {
-    .footer-bottom-bg {
-      transform: translateY(-${BOTTOM_BG_RISE_VH_DESKTOP}vh);
-    }
-  }
-`}</style>
-<img
-  src={BOTTOM_BG}
-  alt=""
-  className="footer-bottom-bg pointer-events-none absolute inset-x-0 bottom-0 z-[5] w-full select-none transition-transform duration-300"
-  style={{ transform: `translateY(-${BOTTOM_BG_RISE_VH_MOBILE}vh)` }}
-  draggable={false}
-/>
+      {/* Floor block under the jagged – now the same color as jagged */}
+      <div className="floor-block absolute inset-x-0 bottom-0 z-[1]" style={{ backgroundColor: JAGGED_BG }} />
+
+      {/* Jagged on top */}
+      <img
+        src={JAGGED_SRC}
+        alt=""
+        draggable={false}
+        className="footer-jagged pointer-events-none absolute inset-x-0 bottom-0 z-[5] w-full select-none"
+      />
 
       {/* Legal row */}
       <div
-        className={[
-          "relative z-[7] mx-auto max-w-[1600px] px-[4vw] py-6",
-          "flex flex-col items-center gap-2 text-center",
-          "md:flex-row md:items-center md:justify-between md:text-left",
-        ].join(" ")}
+        className="relative z-[6] mx-auto max-w-[1600px] px-[4vw] py-6 flex flex-col items-center gap-2 text-center md:flex-row md:items-center md:justify-between md:text-left"
         style={{ color: BG }}
       >
         <span className="font-semibold text-[clamp(16px,3.8vw,20px)] md:text-[clamp(15px,1.3vw,20px)]">
@@ -88,149 +70,43 @@ export default function Footer() {
           Terms &amp; Conditions
         </a>
       </div>
+
+      <style jsx>{`
+        /* MOBILE */
+        .footer-stage {
+          height: min(${MOBILE_STAGE_H_VH}vh, ${MOBILE_STAGE_MAX}px);
+          transform: translateY(${MOBILE_STAGE_SHIFT}vh);
+          overflow: visible;
+        }
+        .flower-img {
+          width: ${FLOWER_W_MOBILE_VW}vw;
+          height: auto;
+          transform: translateX(-50%);
+        }
+        .footer-jagged {
+          transform: translateY(-${JAGGED_RISE_MOBILE}vh);
+        }
+        .floor-block {
+          height: ${FLOOR_MOBILE_H}vh;
+        }
+
+        /* DESKTOP (unchanged) */
+        @media (min-width: 768px) {
+          .footer-stage {
+            height: min(${DESKTOP_STAGE_H_VH}vh, ${DESKTOP_STAGE_MAX}px) !important;
+            transform: translateY(${DESKTOP_STAGE_SHIFT}vh) !important;
+          }
+          .flower-img {
+            width: ${FLOWER_W_DESKTOP_VW}vw;
+          }
+          .footer-jagged {
+            transform: translateY(-${JAGGED_RISE_DESKTOP}vh);
+          }
+          .floor-block {
+            height: ${FLOOR_DESKTOP_H}vh;
+          }
+        }
+      `}</style>
     </footer>
   );
-}
-
-/* ------------------------ Three.js overlay (desktop only) ------------------------ */
-function BreezyOverlay({ src }: { src: string }) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    let renderer: any, scene: any, camera: any, mesh: any, group: any, raf = 0;
-    let imgAspect = 1;
-
-    (async () => {
-      try {
-        const host = hostRef.current;
-        if (!host) return;
-
-        const reduce =
-          typeof window !== "undefined" &&
-          window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        if (reduce) return;
-
-        const THREE = await import("three");
-
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio ?? 1, 2));
-        renderer.setSize(host.clientWidth, host.clientHeight);
-        renderer.setClearAlpha(0);
-        Object.assign(renderer.domElement.style, {
-          position: "absolute",
-          inset: "0",
-          width: "100%",
-          height: "100%",
-          display: "block",
-          zIndex: "3",
-          pointerEvents: "none",
-        } as CSSStyleDeclaration);
-        host.appendChild(renderer.domElement);
-
-        scene = new THREE.Scene();
-        camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
-        camera.position.z = 1;
-
-        const loader = new THREE.TextureLoader();
-        const tex = await new Promise<any>((resolve, reject) => {
-          loader.load(src, resolve, undefined, reject);
-        });
-        tex.flipY = false;
-        tex.anisotropy = 4;
-
-        const w = (tex.image as HTMLImageElement).naturalWidth || tex.image.width || 1;
-        const h = (tex.image as HTMLImageElement).naturalHeight || tex.image.height || 1;
-        imgAspect = w / h;
-
-        const geo = new THREE.PlaneGeometry(2, 2, 120, 160);
-        const uniforms = {
-          u_time:  { value: 0 },
-          u_tex:   { value: tex },
-          u_amp:   { value: 0.035 },
-          u_freq:  { value: 5.0 },
-          u_speed: { value: 0.6 },
-          u_pin:   { value: 0.15 },
-        };
-
-        const mat = new THREE.ShaderMaterial({
-          transparent: true,
-          depthWrite: false,
-          uniforms,
-          vertexShader: `
-            uniform float u_time, u_amp, u_freq, u_speed, u_pin;
-            varying vec2 vUv;
-            void main() {
-              vUv = uv;
-              float w = smoothstep(u_pin, 1.0, vUv.y);
-              w = pow(w, 1.6);
-              float t = u_time * u_speed;
-              float s1 = sin((vUv.y * u_freq) + t);
-              float s2 = cos((vUv.x * (u_freq * 0.7)) + t * 0.8);
-              float dx = (s1 * 0.6 + s2 * 0.4) * u_amp * w;
-              float dy = (cos((vUv.y * u_freq * 0.6) - t * 0.9)) * u_amp * 0.4 * w;
-              vec3 p = position + vec3(dx, dy, 0.0);
-              gl_Position = vec4(p, 1.0);
-            }
-          `,
-          fragmentShader: `
-            precision highp float;
-            uniform sampler2D u_tex;
-            varying vec2 vUv;
-            void main() {
-              vec4 c = texture2D(u_tex, vec2(vUv.x, 1.0 - vUv.y));
-              if (c.a < 0.05) discard;
-              gl_FragColor = c;
-            }
-          `,
-        });
-
-        mesh = new THREE.Mesh(geo, mat);
-        group = new THREE.Group();
-        group.add(mesh);
-        scene.add(group);
-
-        const fit = () => {
-          const W = host.clientWidth || 1;
-          const H = host.clientHeight || 1;
-          renderer.setSize(W, H);
-          const viewAspect = W / H;
-          let sx = 2, sy = 2;
-          if (imgAspect > viewAspect) sy = 2 * (viewAspect / imgAspect);
-          else sx = 2 * (imgAspect / viewAspect);
-          mesh.scale.set(sx, sy, 1);
-        };
-        fit();
-        const onResize = () => fit();
-        window.addEventListener("resize", onResize);
-
-        const loop = (t: number) => {
-          raf = requestAnimationFrame(loop);
-          if (!mounted) return;
-          (mesh.material as any).uniforms.u_time.value = t / 1000;
-          const tt = t / 1000;
-          group.rotation.z = 0.03 * Math.sin(tt * 0.55);
-          group.position.y = 0.02 * Math.sin(tt * 0.9);
-          renderer.render(scene, camera);
-        };
-        raf = requestAnimationFrame(loop);
-
-        return () => window.removeEventListener("resize", onResize);
-      } catch {
-        /* keep base <img> if overlay fails */
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      if (raf) cancelAnimationFrame(raf);
-      try {
-        // @ts-ignore
-        renderer?.dispose?.();
-        renderer?.domElement?.remove?.();
-      } catch {}
-    };
-  }, [src]);
-
-  return <div ref={hostRef} className="pointer-events-none absolute inset-0" />;
 }
