@@ -467,14 +467,24 @@ export default function Painpoints() {
 
 
         {/* Lizard image (static) */}
-        <div className="w-full flex justify-center my-5">
-          <img
-            src="/painpoints/lizard.png"
-            alt=""
-            className="w-[180px] h-[180px]"
-            draggable={false}
-          />
-        </div>
+        {/* Lizard (Lottie) — mobile: keep baked animation & preserve 1:1 ratio */}
+<div className="w-full flex justify-center my-5">
+  <div
+    className="pointer-events-none select-none"
+    style={{
+      width: "clamp(160px, 52vw, 280px)", // adjust size here if needed
+      aspectRatio: "1 / 1",               // keeps perfect square -> no squish
+    }}
+  >
+    <LottieInline
+      src="/lizard-500x500.json"
+      fallback="/painpoints/lizard.png"
+      className="w-full h-full"
+      style={{ width: "100%", height: "100%" }}
+    />
+  </div>
+</div>
+
 
         {/* Gradient heading */}
         <h3 className="font-display font-extrabold text-center leading-[1.05] tracking-[-0.01em] text-[24px] mb-6">

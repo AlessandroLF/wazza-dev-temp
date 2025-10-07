@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PhoneThree from "@/marketing/components/phoneThree";
 
+/* ======= Design tokens ======= */
 const BG_COLOR = "#E7F4F3";
 const MAX_W = 1200;
 const SECTION_Y_PAD_VH = 10;
@@ -13,15 +14,8 @@ const PHONE_DROP_SHADOW = "0 20px 60px rgba(0,0,0,0.25)";
 const COL_GAP_CLAMP = "clamp(24px,3vw,48px)";
 const CARD_GAP_REM = 1.0;
 
-// How fast the column scrolls (px/sec)
+// Column scroll speed (desktop only)
 const SPEED_PX_PER_S = 28;
-
-const MOBILE_PHONE_WIDTH_VW = 58;   // was ~92 — shrink on small screens
-const MOBILE_PHONE_MAX_PX   = 420;  // hard cap
-const MOBILE_PHONE_TOP_VH   = 16;   // push it down a touch
-const MOBILE_PHONE_ROT_DEG  = -2;   // slightly straighter
-const MOBILE_PHONE_OPACITY  = 0.9;  // a hair softer behind text
-const MOBILE_PHONE_X_SHIFT_VW = 29;
 
 /* ===================== Data ===================== */
 const FEATURES: Array<{ id: string; text: string }> = [
@@ -33,9 +27,23 @@ const FEATURES: Array<{ id: string; text: string }> = [
   { id: "06", text: "Connect Multiple Numbers and assign to staff" },
 ];
 
+/* ===================== Helpers ===================== */
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 /* ===================================================== */
 
 export default function Features() {
+  const isMobile = useIsMobile();
+
   const left = useMemo(() => FEATURES.slice(0, 3), []);
   const right = useMemo(() => FEATURES.slice(3), []);
 
@@ -46,72 +54,57 @@ export default function Features() {
       aria-label="Wazzap key features"
       style={{ backgroundColor: BG_COLOR, padding: `${SECTION_Y_PAD_VH}vh 0` }}
     >
-      {/* Mobile-only phone behind the text (prevents cropping) */}
-      <MobilePhoneBackdrop />
-
       <div className="relative z-10 mx-auto px-[4vw]" style={{ maxWidth: MAX_W }}>
         <h2 className="font-display font-extrabold text-[#103B36] tracking-[-0.01em] text-[clamp(24px,3.2vw,42px)]">
           Wazzap Key Features
         </h2>
 
-        <div
-          className="relative mt-6 md:mt-8 flex flex-wrap md:flex-nowrap items-start justify-center"
-          style={{ gap: COL_GAP_CLAMP }}
-        >
-          {/* Left column */}
-          <div className="shrink-0 grow-0 basis-full md:basis-[30%] md:max-w-[30%]">
-            <ColumnContinuous items={left} phase={0} />
+        {/* Layout switches: static stack on mobile, animated columns on md+ */}
+        {isMobile ? (
+          // ---------- MOBILE: no phone, no animation ----------
+          <div className="mt-6 grid grid-cols-1 gap-6">
+            {/* One simple list (or keep two groups stacked) */}
+            {[...left, ...right].map((it) => (
+              <FeatureCard key={it.id} id={it.id} text={it.text} />
+            ))}
           </div>
+        ) : (
+          // ---------- DESKTOP/TABLET ----------
+          <div
+            className="relative mt-8 flex flex-nowrap items-start justify-center"
+            style={{ gap: COL_GAP_CLAMP }}
+          >
+            {/* Left column (animated) */}
+            <div className="shrink-0 grow-0 basis-[30%] max-w-[30%]">
+              <ColumnContinuous items={left} phase={0} />
+            </div>
 
-          {/* Center phone — only on md+ so mobile uses backdrop */}
-          <div className="hidden md:flex shrink-0 grow-0 basis-full md:basis-[40%] md:max-w-[40%] flex-col items-center">
-            <div
-              className="relative rounded-[28px] overflow-visible"
-              style={{
-                width: PHONE_WIDTH_CLAMP,
-                filter: `drop-shadow(${PHONE_DROP_SHADOW})`,
-                aspectRatio: "440 / 600",
-              }}
-            >
-              <PhoneThree style={{ width: "100%", height: "100%" }} />
+            {/* Center phone */}
+            <div className="shrink-0 grow-0 basis-[40%] max-w-[40%] flex-col items-center hidden md:flex">
+              <div
+                className="relative rounded-[28px] overflow-visible"
+                style={{
+                  width: PHONE_WIDTH_CLAMP,
+                  filter: `drop-shadow(${PHONE_DROP_SHADOW})`,
+                  aspectRatio: "440 / 600",
+                }}
+              >
+                <PhoneThree style={{ width: "100%", height: "100%" }} />
+              </div>
+            </div>
+
+            {/* Right column (animated, phase-shifted) */}
+            <div className="shrink-0 grow-0 basis-[30%] max-w-[30%]">
+              <ColumnContinuous items={right} phase={0.5} />
             </div>
           </div>
-
-          {/* Right column (phase-shift for alternating bands) */}
-          <div className="shrink-0 grow-0 basis-full md:basis-[30%] md:max-w-[30%]">
-            <ColumnContinuous items={right} phase={0.5} />
-          </div>
-        </div>
+        )}
       </div>
     </section>
   );
 }
 
-function MobilePhoneBackdrop() {
-  return (
-    <div
-      className="md:hidden pointer-events-none absolute inset-x-0 z-0 flex justify-center"
-      style={{ top: `${MOBILE_PHONE_TOP_VH}vh` }}
-    >
-      <div
-        className="aspect-[440/600]"
-        style={{
-          width: `min(${MOBILE_PHONE_WIDTH_VW}vw, ${MOBILE_PHONE_MAX_PX}px)`,
-          // translateX(-Xvw) shifts it left while keeping everything else the same
-          transform: `translate3d(-${MOBILE_PHONE_X_SHIFT_VW}vw,0,0) rotate(${MOBILE_PHONE_ROT_DEG}deg)`,
-          filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.25))",
-          opacity: MOBILE_PHONE_OPACITY,
-        }}
-      >
-        <PhoneThree style={{ width: "100%", height: "100%" }} />
-      </div>
-    </div>
-  );
-}
-
-
-
-/* =============== Continuous Scrolling Columns =============== */
+/* =============== Continuous Scrolling Columns (desktop only) =============== */
 function ColumnContinuous({
   items,
   phase = 0, // 0..1 fraction of a cycle (offsets left vs right)
@@ -124,7 +117,6 @@ function ColumnContinuous({
   const firstCardRef = useRef<HTMLDivElement>(null);
 
   const [cardH, setCardH] = useState(0);
-  const [gapPx, setGapPx] = useState(0);
 
   const offsetPxRef = useRef(0);
   const cyclePxRef = useRef(1);
@@ -141,9 +133,8 @@ function ColumnContinuous({
     const compute = () => {
       const styles = getComputedStyle(track);
       const gap = parseFloat(styles.rowGap || "0");
-      setGapPx(gap);
-
       const h = first.offsetHeight;
+
       setCardH(h);
 
       // stride = card + spacer + row-gap
@@ -151,10 +142,7 @@ function ColumnContinuous({
       const cycle = items.length * stride;
       cyclePxRef.current = cycle;
 
-      // initial offset from phase
       offsetPxRef.current = (phase % 1) * cycle;
-
-      // exactly 3 blocks visible
       viewport.style.height = `${VISIBLE_BLOCKS * stride}px`;
     };
 
@@ -165,9 +153,7 @@ function ColumnContinuous({
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         compute();
-        if ("fonts" in document) {
-          (document as any).fonts?.ready?.then(compute).catch(() => {});
-        }
+        (document as any).fonts?.ready?.then(compute).catch(() => {});
       });
     });
 
@@ -180,7 +166,7 @@ function ColumnContinuous({
     let last = performance.now();
 
     const loop = (t: number) => {
-      const dt = Math.min(0.05, (t - last) / 1000); // clamp dt
+      const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
 
       const cycle = cyclePxRef.current;
@@ -200,18 +186,18 @@ function ColumnContinuous({
 
   const spacerH = cardH;
   const loopNodes = useMemo(() => {
-  const cycles = [0, 1]; // two cycles are enough (viewport clamped)
-  return cycles.flatMap((cycle) =>
-    items.map((it, idx) => (
-      <div key={`${it.id}-wrap-${idx}-c${cycle}`} className="contents">
-        <div ref={cycle === 0 && idx === 0 ? firstCardRef : undefined}>
-          <FeatureCard id={it.id} text={it.text} />
+    const cycles = [0, 1]; // two cycles are enough (viewport clamped)
+    return cycles.flatMap((cycle) =>
+      items.map((it, idx) => (
+        <div key={`${it.id}-wrap-${idx}-c${cycle}`} className="contents">
+          <div ref={cycle === 0 && idx === 0 ? firstCardRef : undefined}>
+            <FeatureCard id={it.id} text={it.text} />
+          </div>
+          <div style={{ height: spacerH }} aria-hidden="true" />
         </div>
-        <div style={{ height: spacerH }} aria-hidden="true" />
-      </div>
-    ))
-  );
-}, [items, spacerH]);
+      ))
+    );
+  }, [items, spacerH]);
 
   // soft fade mask top/bottom
   const maskStyle: React.CSSProperties = {
@@ -230,7 +216,7 @@ function ColumnContinuous({
   );
 }
 
-/* =============== Card =============== */
+/* =============== Static Card =============== */
 function FeatureCard({ id, text }: { id: string; text: string }) {
   return (
     <div
